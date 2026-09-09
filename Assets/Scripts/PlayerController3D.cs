@@ -30,6 +30,7 @@ public class PlayerController3D : MonoBehaviour
     private bool isAttachedToWall;
     private float horizontalInput;
     private Toolbox nearbyToolbox;
+    private bool isStunned = false;
 
     void Start()
     {
@@ -38,6 +39,7 @@ public class PlayerController3D : MonoBehaviour
 
     void Update()
     {
+        if (isStunned) return; // Bloqueia movimentacao e acoes durante a paralisia
         horizontalInput = 0f;
         if (Input.GetKey(leftKey)) horizontalInput -= 1f;
         if (Input.GetKey(rightKey)) horizontalInput += 1f;
@@ -121,5 +123,36 @@ public class PlayerController3D : MonoBehaviour
     {
         Toolbox box = other.GetComponent<Toolbox>();
         if (box != null && nearbyToolbox == box) nearbyToolbox = null;
+    }
+    public void TakeDamage(Vector3 knockback, float duration)
+    {
+        if (isStunned) return;
+
+        // 1. Solta/Perde a ferramenta atual
+        DropCurrentTool();
+
+        // 2. Aplica a for�a de empurr�o
+        SetAttachedToWall(false); // Garante que solta da parede se estiver com o Plunger
+        rb.linearVelocity = Vector3.zero; // Reseta velocidade anterior para o knockback ser limpo
+        rb.AddForce(knockback, ForceMode.Impulse);
+
+        // 3. Inicia a paralisia
+        StartCoroutine(StunRoutine(duration));
+    }
+
+    public void DropCurrentTool()
+    {
+        if (currentTool != null)
+        {
+            Destroy(currentTool.gameObject);
+            currentTool = null;
+        }
+    }
+
+    private System.Collections.IEnumerator StunRoutine(float duration)
+    {
+        isStunned = true;
+        yield return new WaitForSeconds(duration);
+        isStunned = false;
     }
 }
