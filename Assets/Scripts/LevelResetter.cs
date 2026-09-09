@@ -9,7 +9,7 @@ public class LevelResetter : MonoBehaviour
 
     void Update()
     {
-        // Se a tecla R for pressionada, recarrega a cena atual
+        // Se a tecla R for pressionada, recarrega a cena atual.
         if (Input.GetKeyDown(resetKey))
         {
             ResetLevel();
