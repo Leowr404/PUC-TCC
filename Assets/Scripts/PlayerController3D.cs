@@ -34,12 +34,44 @@ public class PlayerController3D : MonoBehaviour
 
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
+        rb = (Rigidbody)GetComponent(typeof(Rigidbody));
     }
 
     void Update()
     {
-        if (isStunned) return; // Bloqueia movimentacao e acoes durante a paralisia
+        if (isStunned) return;
+
+        // 1. Prioridade para interagir/trocar ferramenta na Caixa de Ferramentas
+        if (Input.GetKeyDown(actionKey) && nearbyToolbox != null)
+        {
+            nearbyToolbox.Interact(this);
+            return;
+        }
+
+        // 2. Comunicacao com a ferramenta equipada
+        if (currentTool != null)
+        {
+            if (Input.GetKeyDown(actionKey)) currentTool.OnActionDown(this);
+            if (Input.GetKey(actionKey)) currentTool.OnActionHold(this);
+            if (Input.GetKeyUp(actionKey)) currentTool.OnActionUp(this);
+        }
+
+        // Verifica se a ferramenta atual e o LaserPointer e se esta mirando
+        bool isAimingWithLaser = false;
+        LaserPointer laserTool = currentTool as LaserPointer;
+        if (laserTool != null && laserTool.IsLockingMovement)
+        {
+            isAimingWithLaser = true;
+        }
+
+        // Se estiver mirando com o laser, bloqueia movimentacao e pulo
+        if (isAimingWithLaser)
+        {
+            horizontalInput = 0f;
+            return;
+        }
+
+        // Processa entrada de movimento normal
         horizontalInput = 0f;
         if (Input.GetKey(leftKey)) horizontalInput -= 1f;
         if (Input.GetKey(rightKey)) horizontalInput += 1f;
@@ -49,21 +81,7 @@ public class PlayerController3D : MonoBehaviour
             isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
         }
 
-        // --- COMUNICAO COM A FERRAMENTA EQUIPADA ---
-        if (currentTool != null)
-        {
-            if (Input.GetKeyDown(actionKey)) currentTool.OnActionDown(this);
-            if (Input.GetKey(actionKey)) currentTool.OnActionHold(this);
-            if (Input.GetKeyUp(actionKey)) currentTool.OnActionUp(this);
-        }
-
-        // Interacao com a Caixa de Ferramentas
-        if (Input.GetKeyDown(actionKey) && nearbyToolbox != null)
-        {
-            nearbyToolbox.Interact(this);
-        }
-
-        // Pulo
+        // Pulo (bloqueado se estiver mirando)
         if (Input.GetKeyDown(jumpKey) && (isGrounded || isAttachedToWall))
         {
             SetAttachedToWall(false);
@@ -92,51 +110,45 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Trava ou destrava o personagem na parede
     public void SetAttachedToWall(bool attach)
     {
         isAttachedToWall = attach;
         rb.isKinematic = attach;
     }
 
-    // Equipa um novo objeto de ferramenta
     public void EquipToolPrefab(GameObject newToolPrefab)
     {
-        // Destroi a ferramenta antiga se existir
         if (currentTool != null)
         {
             Destroy(currentTool.gameObject);
         }
 
-        // Instancia a nova ferramenta na mao do jogador
         GameObject toolObj = Instantiate(newToolPrefab, toolHoldPoint.position, toolHoldPoint.rotation, toolHoldPoint);
-        currentTool = toolObj.GetComponent<BaseTool>();
+        currentTool = (BaseTool)toolObj.GetComponent(typeof(BaseTool));
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        Toolbox box = other.GetComponent<Toolbox>();
+        Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
         if (box != null) nearbyToolbox = box;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        Toolbox box = other.GetComponent<Toolbox>();
+        Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
         if (box != null && nearbyToolbox == box) nearbyToolbox = null;
     }
+
     public void TakeDamage(Vector3 knockback, float duration)
     {
         if (isStunned) return;
 
-        // 1. Solta/Perde a ferramenta atual
         DropCurrentTool();
 
-        // 2. Aplica a for�a de empurr�o
-        SetAttachedToWall(false); // Garante que solta da parede se estiver com o Plunger
-        rb.linearVelocity = Vector3.zero; // Reseta velocidade anterior para o knockback ser limpo
+        SetAttachedToWall(false);
+        rb.linearVelocity = Vector3.zero;
         rb.AddForce(knockback, ForceMode.Impulse);
 
-        // 3. Inicia a paralisia
         StartCoroutine(StunRoutine(duration));
     }
 

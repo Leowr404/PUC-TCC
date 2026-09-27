@@ -13,6 +13,11 @@ public class PatrolEnemy : MonoBehaviour
     public float stunDuration = 1.0f;   // Tempo em segundos que o jogador fica paralisado
 
     private Vector3 targetPosition;     // Guarda a posicao atual para onde o inimigo caminha
+    private float freezeTimer = 0f;     // Tempo restante que o inimigo fica congelado/parado
+
+    // --- ATRACAO PELO LASER ---
+    private bool isChasingLaser = false;
+    private Vector3 laserPointTarget;
 
     void Start()
     {
@@ -20,13 +25,33 @@ public class PatrolEnemy : MonoBehaviour
         if (pointA != null && pointB != null)
         {
             targetPosition = pointB.position;
-            UpdateRotation();
+            UpdateRotationToTarget(targetPosition);
         }
     }
 
     void Update()
     {
-        // Se os pontos nao foram configurados no Inspector, interrompe o script
+        // Se estiver congelado por causa do clipe, decrementa o tempo e nao se move
+        if (freezeTimer > 0f)
+        {
+            freezeTimer -= Time.deltaTime;
+            return; // Interrompe o Update aqui para impedir a movimentação
+        }
+
+        // --- SE ESTIVER SENDO ATRAIDO PELA PONTA DO LASER ---
+        if (isChasingLaser)
+        {
+            // Camina em direcao a PONTA do laser
+            transform.position = Vector3.MoveTowards(transform.position, laserPointTarget, speed * Time.deltaTime);
+            UpdateRotationToTarget(laserPointTarget);
+
+            // Reseta o estado. Se o laser continuar ativo e proximo no proximo frame,
+            // a funcao SetLaserTarget sera chamada novamente e mantera a perseguicao.
+            isChasingLaser = false;
+            return;
+        }
+
+        // --- MOVIMENTACAO NORMAL DE PATRULHA ---
         if (pointA == null || pointB == null) return;
 
         // Move o inimigo continuamente em direcao ao ponto de destino atual
@@ -39,6 +64,19 @@ public class PatrolEnemy : MonoBehaviour
         }
     }
 
+    // Chamado pelo LaserPointer quando a ponta do laser esta no alcance deste inimigo
+    public void SetLaserTarget(Vector3 point)
+    {
+        laserPointTarget = point;
+        isChasingLaser = true;
+    }
+
+    // Método chamado pelo clipe de papel para paralisar o inimigo
+    public void Freeze(float duration)
+    {
+        freezeTimer = duration;
+    }
+
     // Inverte o ponto de destino atual do inimigo
     void SwitchDirection()
     {
@@ -48,19 +86,19 @@ public class PatrolEnemy : MonoBehaviour
         targetPosition = (targetPosition == pointA.position) ? pointB.position : pointA.position;
 
         // Atualiza a rotacao para olhar para a nova direcao
-        UpdateRotation();
+        UpdateRotationToTarget(targetPosition);
     }
 
-    // Calcula a direcao da caminhada e vira o modelo do inimigo para o lado correto
-    void UpdateRotation()
+    // Calcula a direcao e vira o modelo do inimigo para a direcao informada
+    void UpdateRotationToTarget(Vector3 destination)
     {
-        float directionX = targetPosition.x - transform.position.x;
+        float directionX = destination.x - transform.position.x;
 
-        if (directionX > 0)
+        if (directionX > 0.05f)
         {
             transform.rotation = Quaternion.Euler(0, 90f, 0);  // Olhando para a direita
         }
-        else if (directionX < 0)
+        else if (directionX < -0.05f)
         {
             transform.rotation = Quaternion.Euler(0, -90f, 0); // Olhando para a esquerda
         }
@@ -69,24 +107,17 @@ public class PatrolEnemy : MonoBehaviour
     // Detecta colisao com o jogador ou com objetos do cenario (caixas, paredes, etc)
     private void OnCollisionEnter(Collision collision)
     {
-        // 1. Verifica se colidiu com o Jogador
-        PlayerController3D player = collision.gameObject.GetComponent<PlayerController3D>();
+        PlayerController3D player = (PlayerController3D)collision.gameObject.GetComponent(typeof(PlayerController3D));
         if (player != null)
         {
-            // Calcula a direcao do impacto (para tras e levemente para cima)
             Vector3 hitDirection = (player.transform.position - transform.position).normalized;
             hitDirection.y = 0.5f;
 
-            // Aplica o dano, empurrao e atordoamento no jogador
             player.TakeDamage(hitDirection * knockbackForce, stunDuration);
-
-            // Inverte a direcao da patrulha apos acertar o jogador
             SwitchDirection();
             return;
         }
 
-        // 2. Se colidiu com qualquer outro objeto solido (como uma caixa arrastada pelo player)
-        // Ignora apenas o chao para nao mudar de direcao enquanto caminha normalmente
         if (!collision.gameObject.CompareTag("Ground"))
         {
             SwitchDirection();
