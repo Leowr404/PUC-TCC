@@ -697,6 +697,14 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8343818152122505581, guid: 68e15456df9667443a3820382646bf1d, type: 3}
+      propertyPath: crouchKey
+      value: 256
+      objectReference: {fileID: 0}
+    - target: {fileID: 8343818152122505581, guid: 68e15456df9667443a3820382646bf1d, type: 3}
+      propertyPath: crouchHeightRatio
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 8343818152122505581, guid: 68e15456df9667443a3820382646bf1d, type: 3}
       propertyPath: groundLayer.m_Bits
       value: 1544
       objectReference: {fileID: 0}
@@ -2872,6 +2880,14 @@ PrefabInstance:
     - target: {fileID: 4144976698096858697, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7543873805718973826, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
+      propertyPath: crouchKey
+      value: 306
+      objectReference: {fileID: 0}
+    - target: {fileID: 7543873805718973826, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
+      propertyPath: crouchHeightRatio
+      value: 0.2
       objectReference: {fileID: 0}
     - target: {fileID: 7543873805718973826, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
       propertyPath: groundLayer.m_Bits

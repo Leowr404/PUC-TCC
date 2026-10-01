@@ -32,12 +32,15 @@ public class PlayerController3D : MonoBehaviour
     public Transform toolHoldPoint; // Objeto filho (mao do jogador)
 
     private BaseTool currentTool; // Ferramenta equipada no momento
+    private GameObject currentToolPrefab; // Guarda o Prefab da ferramenta atual
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
     private bool isGrounded;
     private bool isAttachedToWall;
     private float horizontalInput;
+
     private Toolbox nearbyToolbox;
+    private StorageToolbox nearbyStorageBox; // Referencia da caixa de deposito/troca
     private bool isStunned = false;
 
     // Variaveis para restaurar as dimensoes originais do Collider
@@ -60,11 +63,19 @@ public class PlayerController3D : MonoBehaviour
     {
         if (isStunned) return;
 
-        // 1. Prioridade para interagir/trocar ferramenta na Caixa de Ferramentas
-        if (Input.GetKeyDown(actionKey) && nearbyToolbox != null)
+        // 1. Interacao com as Caixas (Prioridade: Caixa Normal -> Caixa de Armazenamento)
+        if (Input.GetKeyDown(actionKey))
         {
-            nearbyToolbox.Interact(this);
-            return;
+            if (nearbyToolbox != null)
+            {
+                nearbyToolbox.Interact(this);
+                return;
+            }
+            else if (nearbyStorageBox != null)
+            {
+                nearbyStorageBox.Interact(this);
+                return;
+            }
         }
 
         // 2. Comunicacao com a ferramenta equipada
@@ -181,20 +192,32 @@ public class PlayerController3D : MonoBehaviour
             Destroy(currentTool.gameObject);
         }
 
+        currentToolPrefab = newToolPrefab; // Guarda a referencia do prefab equipado
         GameObject toolObj = Instantiate(newToolPrefab, toolHoldPoint.position, toolHoldPoint.rotation, toolHoldPoint);
         currentTool = (BaseTool)toolObj.GetComponent(typeof(BaseTool));
+    }
+
+    public GameObject GetCurrentToolPrefab()
+    {
+        return currentToolPrefab;
     }
 
     private void OnTriggerEnter(Collider other)
     {
         Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
         if (box != null) nearbyToolbox = box;
+
+        StorageToolbox storageBox = (StorageToolbox)other.GetComponent(typeof(StorageToolbox));
+        if (storageBox != null) nearbyStorageBox = storageBox;
     }
 
     private void OnTriggerExit(Collider other)
     {
         Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
         if (box != null && nearbyToolbox == box) nearbyToolbox = null;
+
+        StorageToolbox storageBox = (StorageToolbox)other.GetComponent(typeof(StorageToolbox));
+        if (storageBox != null && nearbyStorageBox == storageBox) nearbyStorageBox = null;
     }
 
     public void TakeDamage(Vector3 knockback, float duration)
@@ -218,6 +241,7 @@ public class PlayerController3D : MonoBehaviour
         {
             Destroy(currentTool.gameObject);
             currentTool = null;
+            currentToolPrefab = null;
         }
     }
 
