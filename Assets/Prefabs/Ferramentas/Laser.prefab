@@ -137,7 +137,7 @@ MonoBehaviour:
   laserWidth: 0.05
   hitLayers:
     serializedVersion: 2
-    m_Bits: 1983
+    m_Bits: 6079
   attractionRadius: 4
   enemyLayer:
     serializedVersion: 2
