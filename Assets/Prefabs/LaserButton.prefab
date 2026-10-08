@@ -125,7 +125,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd20f9df803a33041a37daa1d12000d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LaserButton
+  buttonType: 0
   targetDoor: {fileID: 0}
   buttonRenderer: {fileID: 0}
   activatedColor: {r: 0, g: 1, b: 0, a: 1}
+  holdResetDelay: 0.15
   isActivated: 0
