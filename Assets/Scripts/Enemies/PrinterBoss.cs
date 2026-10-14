@@ -3,39 +3,65 @@ using UnityEngine;
 
 public class PrinterBoss : MonoBehaviour
 {
-    public enum BossState { Patrol, Shooting, Reloading }
+    public enum BossState { Patrol, Shooting, Reloading, Dash }
 
     [Header("Estado Atual")]
     public BossState currentState = BossState.Patrol;
 
+    [Header("Modelo 3D (Opcional)")]
+    public Transform modelMesh;
+
     [Header("Movimentacao (Patrulha)")]
     public Transform leftPoint;           // Ponto limite esquerdo
     public Transform rightPoint;          // Ponto limite direito
-    public float moveSpeed = 3f;          // Velocidade de movimento
-    private bool movingRight = true;
+    public float moveSpeed = 3f;          // Velocidade de movimento normal
+    public bool startFacingRight = false; // Defina no Inspector para qual lado ele começa olhando
+    private bool movingRight;
 
-    [Header("Visao e Deteccao")]
-    public Transform sightOrigin;         // Ponto de onde sai a visao (ex: olhos/sensor)
-    public float sightDistance = 10f;     // Distancia da visao para frente
+    [Header("Ataque Especial (Investida / Dash)")]
+    public float dashSpeed = 10f;         // Velocidade da investida
+    public float dashStunTime = 1.5f;     // Tempo parado após o dash antes de voltar a patrulhar
+    public float upwardDashForce = 15f;   // Força com que o jogador é lançado para CIMA no Dash
+    private Vector3 dashTargetPosition;   // Ponto fixo onde o jogador estava
+
+    [Header("Dano por Colisao Direta (Toque Normal)")]
+    public float contactKnockback = 8f;   // Força do empurrão normal (fora do dash)
+    public float contactStunDuration = 1f;// Tempo de stun ao tocar no jogador
+
+    [Header("Visao e Deteccao por Area (Box)")]
+    public Transform sightOrigin;         // Ponto de onde sai a visao (Vision)
+    public Vector3 sightBoxSize = new Vector3(8f, 3f, 4f); // Largura (distância X), Altura (Y), Profundidade (Z)
+    public Vector3 sightOffset = Vector3.zero;             // Ajuste fino da posição da caixa no Inspector
     public LayerMask playerLayer;         // Layer dos Jogadores
-    public LayerMask obstacleLayer;       // Layer de paredes/obstaculos para bloquear a visao
+    public LayerMask obstacleLayer;       // Layer de paredes/obstaculos
 
     [Header("Ataque de Papel")]
-    public GameObject paperProjectilePrefab; // Prefab da folha de papel disparada
-    public Transform firePoint;              // Local de onde sai o papel (bandeja de saida)
-    public int papersPerBurst = 5;           // Quantidade de papeis por rajada (X)
-    public float fireRate = 0.2f;            // Intervalo entre cada papel disparado
-    public float projectileSpeed = 12f;      // Velocidade do papel
+    public GameObject paperProjectilePrefab;   // Prefab padrao da folha de papel
+    public Transform firePoint;                // Local de onde sai o papel
+    public int papersPerBurst = 5;             // Quantidade por rajada
+    public float fireRate = 0.2f;              // Intervalo entre tiros
+    public float projectileSpeed = 12f;        // Velocidade do papel
 
     [Header("Recarga")]
-    public float reloadTime = 3f;            // Tempo parado recarregando em segundos (X)
+    public float reloadTime = 3f;              // Tempo recarregando
+    private int burstCount = 0;                // Contador de rajadas de tiro efetuadas
 
+    private Collider bossCollider;
     private Rigidbody rb;
-    private Transform targetPlayer;
 
     void Start()
     {
+        bossCollider = GetComponent<Collider>();
         rb = GetComponent<Rigidbody>();
+
+        if (rb != null)
+        {
+            rb.constraints = RigidbodyConstraints.FreezeRotation;
+            rb.isKinematic = true;
+        }
+
+        movingRight = startFacingRight;
+        ApplyFacingVisual();
     }
 
     void Update()
@@ -44,7 +70,7 @@ public class PrinterBoss : MonoBehaviour
         {
             case BossState.Patrol:
                 PatrolMovement();
-                CheckForPlayer();
+                CheckForPlayerArea();
                 break;
 
             case BossState.Shooting:
@@ -53,6 +79,10 @@ public class PrinterBoss : MonoBehaviour
 
             case BossState.Reloading:
                 // Fica parado enquanto recarrega
+                break;
+
+            case BossState.Dash:
+                // O movimento de investida é processado pela Corrotina DoDashAttack()
                 break;
         }
     }
@@ -63,87 +93,162 @@ public class PrinterBoss : MonoBehaviour
         if (leftPoint == null || rightPoint == null) return;
 
         Transform targetPoint = movingRight ? rightPoint : leftPoint;
-        Vector3 direction = (targetPoint.position - transform.position).normalized;
-        direction.y = 0; // Mantem no plano horizontal
 
-        transform.position = Vector3.MoveTowards(transform.position, targetPoint.position, moveSpeed * Time.deltaTime);
+        Vector3 targetPosition = new Vector3(targetPoint.position.x, transform.position.y, targetPoint.position.z);
+        transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
 
-        // Inverte a direcao ao chegar nos limites
-        if (Vector3.Distance(transform.position, targetPoint.position) < 0.2f)
+        if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z),
+                             new Vector3(targetPoint.position.x, 0, targetPoint.position.z)) < 0.2f)
         {
             movingRight = !movingRight;
-            FlipFacingDirection();
+            ApplyFacingVisual();
         }
     }
 
-    void FlipFacingDirection()
+    void ApplyFacingVisual()
     {
-        // Gira o boss para olhar para o lado que esta andando
-        Vector3 newScale = transform.localScale;
-        newScale.z = movingRight ? Mathf.Abs(newScale.z) : -Mathf.Abs(newScale.z);
-        transform.localScale = newScale;
+        Transform targetTransform = modelMesh != null ? modelMesh : transform;
+        Vector3 scale = targetTransform.localScale;
+        scale.x = Mathf.Abs(scale.x) * (movingRight ? 1f : -1f);
+        targetTransform.localScale = scale;
     }
 
-    // 2. DETECÇÃO DO JOGADOR
-    void CheckForPlayer()
+    private Vector3 GetFacingDirection()
     {
-        Vector3 origin = sightOrigin != null ? sightOrigin.position : transform.position;
-        Vector3 forwardDir = movingRight ? transform.forward : -transform.forward;
+        return movingRight ? Vector3.right : Vector3.left;
+    }
 
-        // Lanca um Raycast/SphereCast na direcao da visao
-        if (Physics.Raycast(origin, forwardDir, out RaycastHit hit, sightDistance, playerLayer | obstacleLayer))
+    private Vector3 GetSightBoxCenter()
+    {
+        Vector3 baseOrigin = sightOrigin != null ? sightOrigin.position : transform.position;
+        Vector3 forwardDir = GetFacingDirection();
+
+        Vector3 center = baseOrigin + forwardDir * (sightBoxSize.x / 2f);
+        center += new Vector3(sightOffset.x * (movingRight ? 1f : -1f), sightOffset.y, sightOffset.z);
+
+        return center;
+    }
+
+    // 2. DETECÇÃO DO JOGADOR POR ÁREA (OverlapBox)
+    void CheckForPlayerArea()
+    {
+        Vector3 center = GetSightBoxCenter();
+        Vector3 halfExtents = sightBoxSize / 2f;
+
+        Collider[] hitColliders = Physics.OverlapBox(center, halfExtents, Quaternion.identity, playerLayer);
+
+        foreach (Collider hit in hitColliders)
         {
-            // Se o raio acertou um jogador antes de bater em uma parede
-            if (((1 << hit.collider.gameObject.layer) & playerLayer) != 0)
+            if (bossCollider != null && hit == bossCollider) continue;
+
+            Vector3 origin = sightOrigin != null ? sightOrigin.position : transform.position;
+            Vector3 dirToPlayer = (hit.transform.position - origin).normalized;
+            float distToPlayer = Vector3.Distance(origin, hit.transform.position);
+
+            if (!Physics.Raycast(origin, dirToPlayer, distToPlayer, obstacleLayer))
             {
-                targetPlayer = hit.transform;
-                StartCoroutine(ShootBurstRoutine());
+                Debug.Log("JOGADOR DETECTADO NA ÁREA DE VISÃO! Iniciando ataque.");
+
+                if (burstCount >= 2)
+                {
+                    dashTargetPosition = new Vector3(hit.transform.position.x, transform.position.y, hit.transform.position.z);
+                    StartCoroutine(DoDashAttack());
+                }
+                else
+                {
+                    StartCoroutine(ShootBurstRoutine());
+                }
+                break;
             }
         }
     }
 
-    // 3. ROTINA DE ATAQUE E RECARGA
+    // 3. ROTINA DE ATAQUE DE PAPEL
     IEnumerator ShootBurstRoutine()
     {
         currentState = BossState.Shooting;
 
-        // Dispara X papeis com intervalo entre eles
         for (int i = 0; i < papersPerBurst; i++)
         {
             ShootPaper();
             yield return new WaitForSeconds(fireRate);
         }
 
-        // Entra no estado de Recarga
         currentState = BossState.Reloading;
+        burstCount++;
+
         yield return new WaitForSeconds(reloadTime);
 
-        // Volta a patrulhar
         currentState = BossState.Patrol;
     }
 
     void ShootPaper()
     {
-        if (paperProjectilePrefab == null || firePoint == null) return;
+        if (paperProjectilePrefab == null) return;
 
-        // Cria o projétil de papel
-        GameObject paper = Instantiate(paperProjectilePrefab, firePoint.position, firePoint.rotation);
+        Transform spawnPoint = firePoint != null ? firePoint : transform;
+        Vector3 shootDirection = GetFacingDirection();
+
+        GameObject paper = Instantiate(paperProjectilePrefab, spawnPoint.position, Quaternion.LookRotation(shootDirection));
         Rigidbody paperRb = paper.GetComponent<Rigidbody>();
 
         if (paperRb != null)
         {
-            Vector3 shootDirection = movingRight ? firePoint.forward : -firePoint.forward;
             paperRb.linearVelocity = shootDirection * projectileSpeed;
         }
     }
 
-    // Desenha o raio de visao no Editor para facilitar a configuracao
+    // 4. ROTINA DE INVESTIDA (DASH)
+    IEnumerator DoDashAttack()
+    {
+        currentState = BossState.Dash;
+        burstCount = 0;
+
+        while (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z),
+                                new Vector3(dashTargetPosition.x, 0, dashTargetPosition.z)) > 0.3f)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, dashTargetPosition, dashSpeed * Time.deltaTime);
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(dashStunTime);
+
+        currentState = BossState.Patrol;
+    }
+
+    // 5. COLISÃO DIRETA COM O JOGADOR (ARREMESSO PARA CIMA NO DASH)
+    private void OnCollisionEnter(Collision collision)
+    {
+        PlayerController3D player = collision.gameObject.GetComponent<PlayerController3D>();
+
+        if (player != null)
+        {
+            Vector3 hitDirection = (player.transform.position - transform.position).normalized;
+
+            if (currentState == BossState.Dash)
+            {
+                // Durante o Dash: Direciona a força fortemente para CIMA (eixo Y)
+                hitDirection.x *= 0.3f; // Reduz empurrão horizontal
+                hitDirection.z *= 0.3f;
+                hitDirection.y = 1.5f;  // Força vertical elevada
+
+                player.TakeDamage(hitDirection.normalized * upwardDashForce, contactStunDuration);
+            }
+            else
+            {
+                // Toque normal durante a patrulha
+                hitDirection.y = 0.4f;
+                player.TakeDamage(hitDirection * contactKnockback, contactStunDuration);
+            }
+
+            player.DropCurrentTool(); // Solta a ferramenta ao ser atingido
+        }
+    }
+
     private void OnDrawGizmosSelected()
     {
-        Vector3 origin = sightOrigin != null ? sightOrigin.position : transform.position;
-        Vector3 forwardDir = movingRight ? transform.forward : -transform.forward;
-
         Gizmos.color = Color.yellow;
-        Gizmos.DrawRay(origin, forwardDir * sightDistance);
+        Vector3 center = GetSightBoxCenter();
+        Gizmos.DrawWireCube(center, sightBoxSize);
     }
 }
