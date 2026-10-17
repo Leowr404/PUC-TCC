@@ -23,11 +23,6 @@ public class PlayerController3D : MonoBehaviour
     public KeyCode actionKey;
     public KeyCode crouchKey;             // Tecla para agachar (Ctrl / 0)
 
-    [Header("Detectador de Chao")]
-    public Transform groundCheck;
-    public LayerMask groundLayer;
-    public float groundCheckRadius = 0.2f;
-
     [Header("Ponto de Encaixe da Ferramenta")]
     public Transform toolHoldPoint; // Objeto filho (mao do jogador)
 
@@ -49,8 +44,8 @@ public class PlayerController3D : MonoBehaviour
 
     void Start()
     {
-        rb = (Rigidbody)GetComponent(typeof(Rigidbody));
-        capsuleCollider = (CapsuleCollider)GetComponent(typeof(CapsuleCollider));
+        rb = GetComponent<Rigidbody>();
+        capsuleCollider = GetComponent<CapsuleCollider>();
 
         if (capsuleCollider != null)
         {
@@ -63,7 +58,7 @@ public class PlayerController3D : MonoBehaviour
     {
         if (isStunned) return;
 
-        // 1. Interacao com as Caixas (Prioridade: Caixa Normal -> Caixa de Armazenamento)
+        // 1. Interacao com as Caixas
         if (Input.GetKeyDown(actionKey))
         {
             if (nearbyToolbox != null)
@@ -86,7 +81,6 @@ public class PlayerController3D : MonoBehaviour
             if (Input.GetKeyUp(actionKey)) currentTool.OnActionUp(this);
         }
 
-        // Verifica se a ferramenta atual e o LaserPointer e se esta mirando
         bool isAimingWithLaser = false;
         LaserPointer laserTool = currentTool as LaserPointer;
         if (laserTool != null && laserTool.IsLockingMovement)
@@ -94,7 +88,6 @@ public class PlayerController3D : MonoBehaviour
             isAimingWithLaser = true;
         }
 
-        // Se estiver mirando com o laser, bloqueia movimentacao, agachamento e pulo
         if (isAimingWithLaser)
         {
             horizontalInput = 0f;
@@ -112,17 +105,22 @@ public class PlayerController3D : MonoBehaviour
         if (Input.GetKey(leftKey)) horizontalInput -= 1f;
         if (Input.GetKey(rightKey)) horizontalInput += 1f;
 
-        if (groundCheck != null)
-        {
-            isGrounded = Physics.CheckSphere(groundCheck.position, groundCheckRadius, groundLayer);
-        }
-
-        // Pulo (se pular agachado, levanta automaticamente)
+        // 4. PULO SIMPLIFICADO (Qualquer superfície detectada pelo Rigidbody)
         if (Input.GetKeyDown(jumpKey) && (isGrounded || isAttachedToWall))
         {
-            if (isCrouching) ToggleCrouch();
+            if (isCrouching)
+            {
+                ToggleCrouch(); // Desativa o agachamento para restaurar o tamanho normal no salto
+            }
 
             SetAttachedToWall(false);
+            isGrounded = false; // Consome o pulo imediatamente
+
+            // Reseta velocidade vertical para garantir o impulso limpo
+            Vector3 velocity = rb.linearVelocity;
+            velocity.y = 0f;
+            rb.linearVelocity = velocity;
+
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
         }
 
@@ -132,11 +130,29 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // DETECÇÃO DE CHÃO POR COLISÃO DIRETA (Qualquer Superfície)
+    private void OnCollisionStay(Collision collision)
+    {
+        // Verifica se pelo menos um dos pontos de contato é uma superfície abaixo do jogador
+        foreach (ContactPoint contact in collision.contacts)
+        {
+            if (contact.normal.y > 0.3f) // Confirma que é uma superfície plana/rampa e não uma parede reta
+            {
+                isGrounded = true;
+                return;
+            }
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        isGrounded = false;
+    }
+
     void FixedUpdate()
     {
         if (isAttachedToWall) return;
 
-        // Define a velocidade atual com base no estado de agachamento
         float currentSpeed = isCrouching ? crouchSpeed : moveSpeed;
         rb.linearVelocity = new Vector3(horizontalInput * currentSpeed, rb.linearVelocity.y, rb.linearVelocity.z);
 
@@ -158,17 +174,10 @@ public class PlayerController3D : MonoBehaviour
 
         if (isCrouching)
         {
-            // Reduz a altura do Collider e reajusta o centro para nao afundar no chao
             capsuleCollider.height = originalColliderHeight * crouchHeightRatio;
-            capsuleCollider.center = new Vector3(
-                originalColliderCenter.x,
-                originalColliderCenter.y * crouchHeightRatio,
-                originalColliderCenter.z
-            );
         }
         else
         {
-            // Restaura o tamanho e centro originais
             capsuleCollider.height = originalColliderHeight;
             capsuleCollider.center = originalColliderCenter;
         }
@@ -181,7 +190,7 @@ public class PlayerController3D : MonoBehaviour
 
         if (attach && isCrouching)
         {
-            ToggleCrouch(); // Se grudar na parede, força levantar
+            ToggleCrouch();
         }
     }
 
@@ -192,7 +201,7 @@ public class PlayerController3D : MonoBehaviour
             Destroy(currentTool.gameObject);
         }
 
-        currentToolPrefab = newToolPrefab; // Guarda a referencia do prefab equipado
+        currentToolPrefab = newToolPrefab;
         GameObject toolObj = Instantiate(newToolPrefab, toolHoldPoint.position, toolHoldPoint.rotation, toolHoldPoint);
         currentTool = (BaseTool)toolObj.GetComponent(typeof(BaseTool));
     }

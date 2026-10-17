@@ -131,7 +131,7 @@ MonoBehaviour:
   raycastPoint: {fileID: 3043207697637225433}
   interactableLayer:
     serializedVersion: 2
-    m_Bits: 1280
+    m_Bits: 256
   rayDistance: 0.5
   toggleCooldown: 0.5
 --- !u!1 &5264726876952349396

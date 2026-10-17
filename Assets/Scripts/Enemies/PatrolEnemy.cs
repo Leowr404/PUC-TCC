@@ -41,12 +41,15 @@ public class PatrolEnemy : MonoBehaviour
         // --- SE ESTIVER SENDO ATRAIDO PELA PONTA DO LASER ---
         if (isChasingLaser)
         {
-            // Camina em direcao a PONTA do laser
-            transform.position = Vector3.MoveTowards(transform.position, laserPointTarget, speed * Time.deltaTime);
-            UpdateRotationToTarget(laserPointTarget);
+            // MANTÉM A ALTURA (Y) DO INIMIGO: impede que ele voe ou afunde
+            Vector3 groundLaserTarget = new Vector3(laserPointTarget.x, transform.position.y, laserPointTarget.z);
 
-            // Reseta o estado. Se o laser continuar ativo e proximo no proximo frame,
-            // a funcao SetLaserTarget sera chamada novamente e mantera a perseguicao.
+            // Caminha em direcao ao laser APENAS no plano horizontal
+            transform.position = Vector3.MoveTowards(transform.position, groundLaserTarget, speed * Time.deltaTime);
+            UpdateRotationToTarget(groundLaserTarget);
+
+            // Reseta o estado. Se o laser continuar ativo no proximo frame,
+            // SetLaserTarget sera chamada novamente mantendo a perseguição.
             isChasingLaser = false;
             return;
         }
@@ -54,11 +57,13 @@ public class PatrolEnemy : MonoBehaviour
         // --- MOVIMENTACAO NORMAL DE PATRULHA ---
         if (pointA == null || pointB == null) return;
 
-        // Move o inimigo continuamente em direcao ao ponto de destino atual
-        transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * Time.deltaTime);
+        // Mantém a altura no movimento de patrulha
+        Vector3 groundTargetPosition = new Vector3(targetPosition.x, transform.position.y, targetPosition.z);
+        transform.position = Vector3.MoveTowards(transform.position, groundTargetPosition, speed * Time.deltaTime);
 
         // Verifica se chegou proximo do ponto limite de patrulha
-        if (Vector3.Distance(transform.position, targetPosition) < 0.05f)
+        if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z),
+                             new Vector3(targetPosition.x, 0, targetPosition.z)) < 0.05f)
         {
             SwitchDirection();
         }
