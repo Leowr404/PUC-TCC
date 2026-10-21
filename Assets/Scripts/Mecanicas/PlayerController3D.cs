@@ -105,18 +105,17 @@ public class PlayerController3D : MonoBehaviour
         if (Input.GetKey(leftKey)) horizontalInput -= 1f;
         if (Input.GetKey(rightKey)) horizontalInput += 1f;
 
-        // 4. PULO SIMPLIFICADO (Qualquer superfície detectada pelo Rigidbody)
+        // 4. PULO SIMPLIFICADO
         if (Input.GetKeyDown(jumpKey) && (isGrounded || isAttachedToWall))
         {
             if (isCrouching)
             {
-                ToggleCrouch(); // Desativa o agachamento para restaurar o tamanho normal no salto
+                ToggleCrouch();
             }
 
             SetAttachedToWall(false);
-            isGrounded = false; // Consome o pulo imediatamente
+            isGrounded = false;
 
-            // Reseta velocidade vertical para garantir o impulso limpo
             Vector3 velocity = rb.linearVelocity;
             velocity.y = 0f;
             rb.linearVelocity = velocity;
@@ -130,13 +129,11 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // DETECÇÃO DE CHÃO POR COLISÃO DIRETA (Qualquer Superfície)
     private void OnCollisionStay(Collision collision)
     {
-        // Verifica se pelo menos um dos pontos de contato é uma superfície abaixo do jogador
         foreach (ContactPoint contact in collision.contacts)
         {
-            if (contact.normal.y > 0.3f) // Confirma que é uma superfície plana/rampa e não uma parede reta
+            if (contact.normal.y > 0.3f)
             {
                 isGrounded = true;
                 return;
@@ -204,6 +201,12 @@ public class PlayerController3D : MonoBehaviour
         currentToolPrefab = newToolPrefab;
         GameObject toolObj = Instantiate(newToolPrefab, toolHoldPoint.position, toolHoldPoint.rotation, toolHoldPoint);
         currentTool = (BaseTool)toolObj.GetComponent(typeof(BaseTool));
+
+        // DEDUZ O VALOR DA FERRAMENTA NO SCORE MANAGER
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.DeductToolCost();
+        }
     }
 
     public GameObject GetCurrentToolPrefab()

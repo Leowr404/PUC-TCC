@@ -22,7 +22,6 @@ public class LevelExitElevator : MonoBehaviour
         {
             playersInElevator.Add(player.gameObject);
 
-            // Se ambos os jogadores (2) estiverem dentro do elevador
             if (playersInElevator.Count >= 2)
             {
                 StartCoroutine(StartElevatorSequence());
@@ -45,6 +44,12 @@ public class LevelExitElevator : MonoBehaviour
     {
         isElevatorActivated = true;
 
+        // CALCULA O BÔNUS DE VELOCIDADE
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.CalculateAndAddSpeedBonus();
+        }
+
         // 1. Esconde o modelo visual de ambos os jogadores
         foreach (GameObject playerObj in playersInElevator)
         {
@@ -61,7 +66,7 @@ public class LevelExitElevator : MonoBehaviour
             }
         }
 
-        // 2. Faz a plataforma do elevador subir durante a duração configurada
+        // 2. Faz o elevador subir
         float timer = 0f;
         Transform targetTransform = elevatorPlatform != null ? elevatorPlatform : transform;
 
@@ -72,7 +77,12 @@ public class LevelExitElevator : MonoBehaviour
             yield return null;
         }
 
-        // 3. Carrega automaticamente o próximo índice de cena configurado no Build Settings
+        // 3. Reseta o cronômetro para a próxima fase e carrega a nova cena
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.ResetLevelTimer();
+        }
+
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
 
         if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
