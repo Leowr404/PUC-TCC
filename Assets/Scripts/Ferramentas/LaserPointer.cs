@@ -98,6 +98,13 @@ public class LaserPointer : BaseTool
         if (Physics.Raycast(startPos, aimDirection, out hit, maxDistance, hitLayers))
         {
             endPos = hit.point; // PONTA DO LASER onde houve o impacto
+
+            // --- ATIVAÇÃO DO BOTAO DE LASER ---
+            LaserButton laserBtn = hit.collider.GetComponent<LaserButton>();
+            if (laserBtn != null)
+            {
+                laserBtn.ActivateByLaser();
+            }
         }
 
         lineRenderer.SetPosition(0, startPos);
@@ -121,7 +128,6 @@ public class LaserPointer : BaseTool
         ExitAim();
     }
 
-    // Desenha uma esfera vermelha no Editor da Unity para visualizar o raio de atracao da ponta
     private void OnDrawGizmosSelected()
     {
         if (firePoint != null)

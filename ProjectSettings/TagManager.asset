@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Ground
   - Wall
+  - Boss
   layers:
   - Default
   - TransparentFX
@@ -19,7 +20,7 @@ TagManager:
   - Plunger
   - Box
   - Enemy
-  - 
+  - Button
   - 
   - 
   - 

@@ -18,6 +18,12 @@ public class LevelResetter : MonoBehaviour
 
     public void ResetLevel()
     {
+        // Restaura o salário do início da fase antes de recarregar a cena
+        if (ScoreManager.Instance != null)
+        {
+            ScoreManager.Instance.ResetToLevelStartSalary();
+        }
+
         // Pega o indice da cena ativa no momento e recarrega
         int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
         SceneManager.LoadScene(currentSceneIndex);
