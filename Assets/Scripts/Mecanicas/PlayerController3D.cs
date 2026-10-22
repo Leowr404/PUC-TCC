@@ -61,12 +61,12 @@ public class PlayerController3D : MonoBehaviour
     {
         if (playerIndex == PlayerIndex.Player1)
         {
-            // Player 1: A/D (Mover), W (Pulo), S (Interagir), C (Agachar)
+            // Player 1: A/D (Mover), W (Pulo), S (Interagir), Control / C (Agachar)
             kLeft = KeyCode.A;
             kRight = KeyCode.D;
             kJump = KeyCode.W;
             kInteract = KeyCode.S;
-            kCrouch = KeyCode.C;
+            kCrouch = KeyCode.LeftControl;
             kCrouchAlt = KeyCode.C;
         }
         else
@@ -76,8 +76,8 @@ public class PlayerController3D : MonoBehaviour
             kRight = KeyCode.RightArrow;
             kJump = KeyCode.UpArrow;
             kInteract = KeyCode.DownArrow;
-            kCrouch = KeyCode.Alpha0;
-            kCrouchAlt = KeyCode.Keypad0; // Suporta tanto o 0 do teclado numérico quanto o superior
+            kCrouch = KeyCode.Alpha0;       // 0 do teclado superior
+            kCrouchAlt = KeyCode.Keypad0;    // 0 do Numpad
         }
     }
 
@@ -116,13 +116,16 @@ public class PlayerController3D : MonoBehaviour
         if (Input.GetKey(kLeft)) horizontalInput -= 1f;
         if (Input.GetKey(kRight)) horizontalInput += 1f;
 
-        // Pulo
-        if (Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
+        // Pulo (DESATIVADO quando o laser estiver mirado)
+        LaserPointer laserTool = currentTool as LaserPointer;
+        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
+
+        if (!isLaserActive && Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
         {
             ExecuteJump();
         }
 
-        // Agachar (Suporta a tecla principal e alternativa do 0)
+        // Agachar (P1 usa Control/C P2 usa o 0)
         if ((Input.GetKeyDown(kCrouch) || Input.GetKeyDown(kCrouchAlt)) && !isAttachedToWall)
         {
             ToggleCrouch();
@@ -177,7 +180,10 @@ public class PlayerController3D : MonoBehaviour
 
     public void OnJump(InputValue value)
     {
-        if (value.isPressed && (isGrounded || isAttachedToWall))
+        LaserPointer laserTool = currentTool as LaserPointer;
+        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
+
+        if (!isLaserActive && value.isPressed && (isGrounded || isAttachedToWall))
         {
             ExecuteJump();
         }
