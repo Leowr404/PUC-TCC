@@ -47,23 +47,22 @@ public class LaserPointer : BaseTool
 
     void Update()
     {
-        if (!isAiming || ownerPlayer == null) return;
+        if (!isAiming || ownerPlayer == null || InputManager.Instance == null) return;
 
-        // Cancela o modo de mira se o jogador mover para os lados
-        if (Input.GetKeyDown(ownerPlayer.leftKey) || Input.GetKeyDown(ownerPlayer.rightKey) ||
-            Input.GetKey(ownerPlayer.leftKey) || Input.GetKey(ownerPlayer.rightKey))
+        // 1. Cancela o modo de mira se o jogador mover para os lados (Eixo X do Move)
+        if (Mathf.Abs(InputManager.Instance.Move.x) > 0.1f)
         {
             ExitAim();
             return;
         }
 
-        // Ajusta angulo
-        if (Input.GetKey(ownerPlayer.jumpKey))
+        // 2. Ajusta angulo do laser usando Jump e Interact do InputManager
+        if (InputManager.Instance.Jump)
         {
             currentLaserAngle += rotationSpeed * Time.deltaTime;
         }
 
-        if (Input.GetKey(ownerPlayer.actionKey))
+        if (InputManager.Instance.Interact)
         {
             currentLaserAngle -= rotationSpeed * Time.deltaTime;
         }
