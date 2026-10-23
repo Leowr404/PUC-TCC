@@ -41,7 +41,7 @@ public class PlayerController3D : MonoBehaviour
     private Vector3 originalColliderCenter;
 
     // Teclas do Teclado
-    private KeyCode kLeft, kRight, kJump, kInteract, kCrouch, kCrouchAlt;
+    private KeyCode kLeft, kRight, kJump, kInteract, kCrouch;
 
     void Start()
     {
@@ -61,23 +61,21 @@ public class PlayerController3D : MonoBehaviour
     {
         if (playerIndex == PlayerIndex.Player1)
         {
-            // Player 1: A/D (Mover), W (Pulo), S (Interagir), Control / C (Agachar)
+            // Player 1: A/D (Mover), W (Pulo), E (Interagir), S (Agachar)
             kLeft = KeyCode.A;
             kRight = KeyCode.D;
             kJump = KeyCode.W;
-            kInteract = KeyCode.S;
-            kCrouch = KeyCode.LeftControl;
-            kCrouchAlt = KeyCode.C;
+            kInteract = KeyCode.E;
+            kCrouch = KeyCode.S;
         }
         else
         {
-            // Player 2: Setas Esq/Direita (Mover), Seta Cima (Pulo), Seta Baixo (Interagir), 0 (Agachar)
+            // Player 2: Setas Esq/Direita (Mover), Seta Cima (Pulo), Shift Direito (Interagir), Seta Baixo (Agachar)
             kLeft = KeyCode.LeftArrow;
             kRight = KeyCode.RightArrow;
             kJump = KeyCode.UpArrow;
-            kInteract = KeyCode.DownArrow;
-            kCrouch = KeyCode.Alpha0;       // 0 do teclado superior
-            kCrouchAlt = KeyCode.Keypad0;    // 0 do Numpad
+            kInteract = KeyCode.RightShift;
+            kCrouch = KeyCode.DownArrow;
         }
     }
 
@@ -125,13 +123,13 @@ public class PlayerController3D : MonoBehaviour
             ExecuteJump();
         }
 
-        // Agachar (P1 usa Control/C P2 usa o 0)
-        if ((Input.GetKeyDown(kCrouch) || Input.GetKeyDown(kCrouchAlt)) && !isAttachedToWall)
+        // Agachar (S para P1, Seta para Baixo para P2)
+        if (Input.GetKeyDown(kCrouch) && !isAttachedToWall)
         {
             ToggleCrouch();
         }
 
-        // Interação e Uso de Ferramentas
+        // Interação e Uso de Ferramentas (E para P1, Shift Direito para P2)
         if (Input.GetKeyDown(kInteract))
         {
             ExecuteInteract();
