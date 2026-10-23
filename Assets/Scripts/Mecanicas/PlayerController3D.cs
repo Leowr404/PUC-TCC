@@ -35,6 +35,7 @@ public class PlayerController3D : MonoBehaviour
 
     private Toolbox nearbyToolbox;
     private StorageToolbox nearbyStorageBox;
+    private ConnectedStorageBox nearbyConnectedBox;
     private bool isStunned = false;
 
     private float originalColliderHeight;
@@ -61,7 +62,6 @@ public class PlayerController3D : MonoBehaviour
     {
         if (playerIndex == PlayerIndex.Player1)
         {
-            // Player 1: A/D (Mover), W (Pulo), E (Interagir), S (Agachar)
             kLeft = KeyCode.A;
             kRight = KeyCode.D;
             kJump = KeyCode.W;
@@ -70,7 +70,6 @@ public class PlayerController3D : MonoBehaviour
         }
         else
         {
-            // Player 2: Setas Esq/Direita (Mover), Seta Cima (Pulo), Shift Direito (Interagir), Seta Baixo (Agachar)
             kLeft = KeyCode.LeftArrow;
             kRight = KeyCode.RightArrow;
             kJump = KeyCode.UpArrow;
@@ -83,24 +82,23 @@ public class PlayerController3D : MonoBehaviour
     {
         if (isStunned) return;
 
-        // 1. Processa teclado local configurado por P1 / P2
         ProcessKeyboardInput();
 
-        // 2. Trava de movimento se estiver mirando com o Laser
-        bool isAimingWithLaser = false;
+        // Verifica se a caneta laser está ativa e travando o movimento/ações
         LaserPointer laserTool = currentTool as LaserPointer;
-        if (laserTool != null && laserTool.IsLockingMovement)
-        {
-            isAimingWithLaser = true;
-        }
+        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
-        if (isAimingWithLaser)
+        if (isLaserActive)
         {
             horizontalInput = 0f;
+            // Se o player estiver agachado e ativar o laser, ele levanta automaticamente
+            if (isCrouching)
+            {
+                ToggleCrouch();
+            }
             return;
         }
 
-        // 3. Rotação do Personagem
         if (horizontalInput != 0 && !isAttachedToWall)
         {
             transform.rotation = Quaternion.Euler(0, horizontalInput > 0 ? 90f : -90f, 0);
@@ -109,27 +107,25 @@ public class PlayerController3D : MonoBehaviour
 
     private void ProcessKeyboardInput()
     {
-        // Movimento Horizontal
         horizontalInput = 0f;
         if (Input.GetKey(kLeft)) horizontalInput -= 1f;
         if (Input.GetKey(kRight)) horizontalInput += 1f;
 
-        // Pulo (DESATIVADO quando o laser estiver mirado)
         LaserPointer laserTool = currentTool as LaserPointer;
         bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
+        // Pulo bloqueado se o laser estiver ativo
         if (!isLaserActive && Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
         {
             ExecuteJump();
         }
 
-        // Agachar (S para P1, Seta para Baixo para P2)
-        if (Input.GetKeyDown(kCrouch) && !isAttachedToWall)
+        // Agachar bloqueado se o laser estiver ativo
+        if (!isLaserActive && Input.GetKeyDown(kCrouch) && !isAttachedToWall)
         {
             ToggleCrouch();
         }
 
-        // Interação e Uso de Ferramentas (E para P1, Shift Direito para P2)
         if (Input.GetKeyDown(kInteract))
         {
             ExecuteInteract();
@@ -162,6 +158,11 @@ public class PlayerController3D : MonoBehaviour
             nearbyStorageBox.Interact(this);
             return;
         }
+        else if (nearbyConnectedBox != null)
+        {
+            nearbyConnectedBox.Interact(this);
+            return;
+        }
 
         if (currentTool != null)
         {
@@ -169,7 +170,6 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // --- MÉTODOS DE EVENTO (Para uso com Gamepads) ---
     public void OnMove(InputValue value)
     {
         Vector2 move = value.Get<Vector2>();
@@ -197,7 +197,11 @@ public class PlayerController3D : MonoBehaviour
 
     public void OnSprint(InputValue value)
     {
-        if (value.isPressed && !isAttachedToWall)
+        LaserPointer laserTool = currentTool as LaserPointer;
+        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
+
+        // Gamepad Sprint/Crouch bloqueado se o laser estiver ativo
+        if (!isLaserActive && value.isPressed && !isAttachedToWall)
         {
             ToggleCrouch();
         }
@@ -289,20 +293,26 @@ public class PlayerController3D : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
+        Toolbox box = other.GetComponent<Toolbox>();
         if (box != null) nearbyToolbox = box;
 
-        StorageToolbox storageBox = (StorageToolbox)other.GetComponent(typeof(StorageToolbox));
+        StorageToolbox storageBox = other.GetComponent<StorageToolbox>();
         if (storageBox != null) nearbyStorageBox = storageBox;
+
+        ConnectedStorageBox connectedBox = other.GetComponent<ConnectedStorageBox>();
+        if (connectedBox != null) nearbyConnectedBox = connectedBox;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        Toolbox box = (Toolbox)other.GetComponent(typeof(Toolbox));
+        Toolbox box = other.GetComponent<Toolbox>();
         if (box != null && nearbyToolbox == box) nearbyToolbox = null;
 
-        StorageToolbox storageBox = (StorageToolbox)other.GetComponent(typeof(StorageToolbox));
+        StorageToolbox storageBox = other.GetComponent<StorageToolbox>();
         if (storageBox != null && nearbyStorageBox == storageBox) nearbyStorageBox = null;
+
+        ConnectedStorageBox connectedBox = other.GetComponent<ConnectedStorageBox>();
+        if (connectedBox != null && nearbyConnectedBox == connectedBox) nearbyConnectedBox = null;
     }
 
     public void TakeDamage(Vector3 knockback, float duration)
