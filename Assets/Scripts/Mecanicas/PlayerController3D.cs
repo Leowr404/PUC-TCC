@@ -41,6 +41,9 @@ public class PlayerController3D : MonoBehaviour
     private float originalColliderHeight;
     private Vector3 originalColliderCenter;
 
+    // Guarda a última rotação válida para o player não voltar a olhar para o lado errado sozinho
+    private float targetYRotation = 90f;
+
     // Teclas do Teclado
     private KeyCode kLeft, kRight, kJump, kInteract, kCrouch;
 
@@ -56,6 +59,9 @@ public class PlayerController3D : MonoBehaviour
         }
 
         SetupKeyboardKeys();
+
+        // Define a rotação inicial baseada na orientação atual do objeto na cena
+        targetYRotation = transform.eulerAngles.y;
     }
 
     void SetupKeyboardKeys()
@@ -101,7 +107,7 @@ public class PlayerController3D : MonoBehaviour
 
         if (horizontalInput != 0 && !isAttachedToWall)
         {
-            transform.rotation = Quaternion.Euler(0, horizontalInput > 0 ? 90f : -90f, 0);
+            targetYRotation = horizontalInput > 0 ? 90f : -90f;
         }
     }
 
@@ -170,12 +176,6 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    public void OnMove(InputValue value)
-    {
-        Vector2 move = value.Get<Vector2>();
-        if (Mathf.Abs(move.x) > 0.1f) horizontalInput = move.x;
-    }
-
     public void OnJump(InputValue value)
     {
         LaserPointer laserTool = currentTool as LaserPointer;
@@ -227,6 +227,9 @@ public class PlayerController3D : MonoBehaviour
     void FixedUpdate()
     {
         if (isAttachedToWall) return;
+
+        // Aplica a rotação de forma segura junto ao ciclo de física
+        transform.rotation = Quaternion.Euler(0, targetYRotation, 0);
 
         float currentSpeed = isCrouching ? crouchSpeed : moveSpeed;
         rb.linearVelocity = new Vector3(horizontalInput * currentSpeed, rb.linearVelocity.y, rb.linearVelocity.z);

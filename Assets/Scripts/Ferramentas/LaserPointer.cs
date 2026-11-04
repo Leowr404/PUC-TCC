@@ -5,7 +5,7 @@ public class LaserPointer : BaseTool
     [Header("Configuracoes do Laser")]
     public Transform firePoint;             // Ponta da caneta laser
     public LineRenderer lineRenderer;       // Componente LineRenderer
-    public float maxDistance = 30f;         // Alcance maximo do raio
+    public float maxDistance = 30f;           // Alcance maximo do raio
     public float rotationSpeed = 60f;       // Velocidade de ajuste do angulo
     public float minAngle = -45f;           // Angulo maximo para baixo
     public float maxAngle = 45f;            // Angulo maximo para cima
@@ -107,6 +107,13 @@ public class LaserPointer : BaseTool
             if (laserBtn != null)
             {
                 laserBtn.ActivateByLaser();
+            }
+
+            // --- ATIVAÇÃO DO BOTAO DE CORES DO PUZZLE ---
+            ColorButtonController colorBtn = hit.collider.GetComponent<ColorButtonController>();
+            if (colorBtn != null)
+            {
+                colorBtn.ActivateByLaser();
             }
         }
 
