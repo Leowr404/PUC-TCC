@@ -5,7 +5,7 @@ public class LaserPointer : BaseTool
     [Header("Configuracoes do Laser")]
     public Transform firePoint;             // Ponta da caneta laser
     public LineRenderer lineRenderer;       // Componente LineRenderer
-    public float maxDistance = 30f;         // Alcance maximo do raio
+    public float maxDistance = 30f;           // Alcance maximo do raio
     public float rotationSpeed = 60f;       // Velocidade de ajuste do angulo
     public float minAngle = -45f;           // Angulo maximo para baixo
     public float maxAngle = 45f;            // Angulo maximo para cima
@@ -49,21 +49,24 @@ public class LaserPointer : BaseTool
     {
         if (!isAiming || ownerPlayer == null) return;
 
-        // Cancela o modo de mira se o jogador mover para os lados
-        if (Input.GetKeyDown(ownerPlayer.leftKey) || Input.GetKeyDown(ownerPlayer.rightKey) ||
-            Input.GetKey(ownerPlayer.leftKey) || Input.GetKey(ownerPlayer.rightKey))
+        // 1. Cancela o modo de mira se o jogador pressionar para andar para os lados
+        if (Input.GetKey(ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.A : KeyCode.LeftArrow) ||
+            Input.GetKey(ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.D : KeyCode.RightArrow))
         {
             ExitAim();
             return;
         }
 
-        // Ajusta angulo
-        if (Input.GetKey(ownerPlayer.jumpKey))
+        // 2. Ajusta angulo do laser usando as teclas de Pulo (sobe) e Interagir (desce) do respectivo jogador
+        KeyCode keyUp = ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.W : KeyCode.UpArrow;
+        KeyCode keyDown = ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.S : KeyCode.DownArrow;
+
+        if (Input.GetKey(keyUp))
         {
             currentLaserAngle += rotationSpeed * Time.deltaTime;
         }
 
-        if (Input.GetKey(ownerPlayer.actionKey))
+        if (Input.GetKey(keyDown))
         {
             currentLaserAngle -= rotationSpeed * Time.deltaTime;
         }
@@ -104,6 +107,13 @@ public class LaserPointer : BaseTool
             if (laserBtn != null)
             {
                 laserBtn.ActivateByLaser();
+            }
+
+            // --- ATIVAÇÃO DO BOTAO DE CORES DO PUZZLE ---
+            ColorButtonController colorBtn = hit.collider.GetComponent<ColorButtonController>();
+            if (colorBtn != null)
+            {
+                colorBtn.ActivateByLaser();
             }
         }
 
