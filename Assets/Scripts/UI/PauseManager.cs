@@ -9,7 +9,7 @@ public class PauseManager : MonoBehaviour
 {
     [SerializeField] GameObject painelPause;
     [SerializeField] GameObject painelSettings;
-    [SerializeField] string cenaMenu = "MainMenu";
+    [SerializeField] string cenaMenu = "Testemenu";
     [Tooltip("Desmarque se o script do player já chama AlternarPause().")]
     [SerializeField] bool lerTeclaPause = true;
 
