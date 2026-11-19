@@ -330,6 +330,9 @@ public class PlayerController3D : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         rb.AddForce(knockback, ForceMode.Impulse);
 
+        Feedback.TremerCamera(0.2f, 0.25f);
+        Feedback.Vibrar(this, 0.7f, 0.25f);
+
         StartCoroutine(StunRoutine(duration));
     }
 
@@ -343,6 +346,8 @@ public class PlayerController3D : MonoBehaviour
         SetAttachedToWall(false);
         rb.linearVelocity = Vector3.zero;
         rb.AddForce(knockback, ForceMode.Impulse);
+
+        Feedback.Vibrar(this, 0.3f, 0.15f);
 
         StartCoroutine(StunRoutine(duration));
     }
