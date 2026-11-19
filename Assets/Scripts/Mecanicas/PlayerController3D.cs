@@ -32,6 +32,7 @@ public class PlayerController3D : MonoBehaviour
     private bool isGrounded;
     private bool isAttachedToWall;
     private float horizontalInput;
+    private bool isWalkingSoundPlaying;
 
     private Toolbox nearbyToolbox;
     private StorageToolbox nearbyStorageBox;
@@ -41,10 +42,7 @@ public class PlayerController3D : MonoBehaviour
     private float originalColliderHeight;
     private Vector3 originalColliderCenter;
 
-    // Guarda a última rotação válida para o player não voltar a olhar para o lado errado sozinho
     private float targetYRotation = 90f;
-
-    // Teclas do Teclado
     private KeyCode kLeft, kRight, kJump, kInteract, kCrouch;
 
     void Start()
@@ -59,8 +57,6 @@ public class PlayerController3D : MonoBehaviour
         }
 
         SetupKeyboardKeys();
-
-        // Define a rotação inicial baseada na orientação atual do objeto na cena
         targetYRotation = transform.eulerAngles.y;
     }
 
@@ -86,18 +82,22 @@ public class PlayerController3D : MonoBehaviour
 
     void Update()
     {
-        if (isStunned) return;
+        if (isStunned)
+        {
+            StopWalkSound();
+            return;
+        }
 
         ProcessKeyboardInput();
 
-        // Verifica se a caneta laser está ativa e travando o movimento/ações
         LaserPointer laserTool = currentTool as LaserPointer;
         bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
         if (isLaserActive)
         {
             horizontalInput = 0f;
-            // Se o player estiver agachado e ativar o laser, ele levanta automaticamente
+            StopWalkSound();
+
             if (isCrouching)
             {
                 ToggleCrouch();
@@ -109,6 +109,34 @@ public class PlayerController3D : MonoBehaviour
         {
             targetYRotation = horizontalInput > 0 ? 90f : -90f;
         }
+
+        UpdateWalkSound();
+    }
+
+    private void UpdateWalkSound()
+    {
+        bool shouldWalk = isGrounded && !isAttachedToWall && Mathf.Abs(horizontalInput) > 0.01f;
+
+        if (shouldWalk && !isWalkingSoundPlaying)
+        {
+            if (AudioManager.instancia != null && AudioManager.instancia.andar != null)
+            {
+                AudioManager.instancia.PlaySFX(AudioManager.instancia.andar, true);
+                isWalkingSoundPlaying = true;
+            }
+        }
+        else if (!shouldWalk && isWalkingSoundPlaying)
+        {
+            StopWalkSound();
+        }
+    }
+
+    private void StopWalkSound()
+    {
+        if (!isWalkingSoundPlaying) return;
+
+        AudioManager.instancia?.StopLoopingSFX();
+        isWalkingSoundPlaying = false;
     }
 
     private void ProcessKeyboardInput()
@@ -120,13 +148,11 @@ public class PlayerController3D : MonoBehaviour
         LaserPointer laserTool = currentTool as LaserPointer;
         bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
-        // Pulo bloqueado se o laser estiver ativo
         if (!isLaserActive && Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
         {
             ExecuteJump();
         }
 
-        // Agachar bloqueado se o laser estiver ativo
         if (!isLaserActive && Input.GetKeyDown(kCrouch) && !isAttachedToWall)
         {
             ToggleCrouch();
@@ -140,6 +166,8 @@ public class PlayerController3D : MonoBehaviour
 
     private void ExecuteJump()
     {
+        StopWalkSound();
+
         if (isCrouching) ToggleCrouch();
 
         SetAttachedToWall(false);
@@ -176,6 +204,11 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    public void PlayPushSound()
+    {
+        AudioManager.instancia?.PlaySFX(AudioManager.instancia.empurrar);
+    }
+
     public void OnJump(InputValue value)
     {
         LaserPointer laserTool = currentTool as LaserPointer;
@@ -200,7 +233,6 @@ public class PlayerController3D : MonoBehaviour
         LaserPointer laserTool = currentTool as LaserPointer;
         bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
-        // Gamepad Sprint/Crouch bloqueado se o laser estiver ativo
         if (!isLaserActive && value.isPressed && !isAttachedToWall)
         {
             ToggleCrouch();
@@ -228,7 +260,6 @@ public class PlayerController3D : MonoBehaviour
     {
         if (isAttachedToWall) return;
 
-        // Aplica a rotação de forma segura junto ao ciclo de física
         transform.rotation = Quaternion.Euler(0, targetYRotation, 0);
 
         float currentSpeed = isCrouching ? crouchSpeed : moveSpeed;
@@ -322,6 +353,8 @@ public class PlayerController3D : MonoBehaviour
     {
         if (isStunned) return;
 
+        StopWalkSound();
+
         if (isCrouching) ToggleCrouch();
 
         DropCurrentTool();
@@ -330,16 +363,18 @@ public class PlayerController3D : MonoBehaviour
         rb.linearVelocity = Vector3.zero;
         rb.AddForce(knockback, ForceMode.Impulse);
 
+        AudioManager.instancia?.PlaySFX(AudioManager.instancia.Hit);
         Feedback.TremerCamera(0.2f, 0.25f);
         Feedback.Vibrar(this, 0.7f, 0.25f);
 
         StartCoroutine(StunRoutine(duration));
     }
 
-    // Aplicado pelo vento: apenas empurra o jogador e dá stun leve, SEM dropar o equipamento
     public void TakeWindKnockback(Vector3 knockback, float duration)
     {
         if (isStunned) return;
+
+        StopWalkSound();
 
         if (isCrouching) ToggleCrouch();
 

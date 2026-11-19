@@ -2,17 +2,6 @@
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 
-// Toca música e efeitos sonoros. O VOLUME fica com a classe Configuracoes
-// (painel de configurações), que usa o mixer Assets/Resources/MixerPrincipal.
-//
-// Como usar de qualquer script:
-//   AudioManager.instancia.PlaySFX(AudioManager.instancia.Hit);
-//   AudioManager.instancia.PlaySFX(clip, true);   // som em loop
-//   AudioManager.instancia.StopLoopingSFX();
-//
-// IMPORTANTE: deixe este componente num GameObject só dele (ex.: "AudioManager").
-// Ele passa de uma cena para outra (DontDestroyOnLoad), então a música não corta.
-// Pode ter um em cada cena: o primeiro que existir fica, os outros se apagam.
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager instancia;
@@ -22,7 +11,6 @@ public class AudioManager : MonoBehaviour
     [SerializeField] AudioSource sfxSource;
     [SerializeField] AudioSource loopingSfxSource;
 
-    // mantidos para o VolumeSlider antigo continuar compilando
     public const string SFXVolumeKey = "SFXVolume";
     public const string MusicVolumeKey = "MusicVolume";
 
@@ -39,10 +27,23 @@ public class AudioManager : MonoBehaviour
     public AudioClip Danger;
     public AudioClip Explosion;
     public AudioClip BossDeath;
+    public AudioClip elevadorSubindo;
+
+    [Header("Player Sons")]
+    public AudioClip andar;
+    public AudioClip atirarGrampo;
+    public AudioClip empurrar;
+
+    [Header("Boss Sons")]
+    public AudioClip bossAndando;
+    public AudioClip bossAtirando;
+    public AudioClip bossRecarregando;
+    public AudioClip bossDanoGrampo;
 
     [Header("Músicas")]
     public AudioClip backgroundMusicMenu;
     public AudioClip backgroundMusicGameplay;
+    public AudioClip musicaElevador;
 
     [Header("UI Sons")]
     public AudioClip ClickButton;
@@ -58,7 +59,6 @@ public class AudioManager : MonoBehaviour
         }
         instancia = this;
 
-        // Só persiste se estiver num objeto próprio, para não levar outros scripts junto
         if (GetComponents<MonoBehaviour>().Length == 1)
         {
             transform.SetParent(null);
@@ -75,7 +75,6 @@ public class AudioManager : MonoBehaviour
 
         musicSource = Preparar(musicSource, "Musica", grupoMusica);
         sfxSource = Preparar(sfxSource, "SFX", grupoEfeitos);
-        // o PauseManager pausa o AudioListener; sem isto os cliques do menu de pause ficariam mudos
         sfxSource.ignoreListenerPause = true;
         loopingSfxSource = Preparar(loopingSfxSource, "SFX Loop", grupoEfeitos);
     }
@@ -86,7 +85,6 @@ public class AudioManager : MonoBehaviour
     void Start()
     {
         Configuracoes.AplicarAudio();
-        // toca a música da cena em que o jogo começou
         OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
     }
 
@@ -110,13 +108,12 @@ public class AudioManager : MonoBehaviour
             go.transform.SetParent(transform, false);
             fonte = go.AddComponent<AudioSource>();
             fonte.playOnAwake = false;
-            fonte.spatialBlend = 0f; // som 2D
+            fonte.spatialBlend = 0f;
         }
         if (grupo != null && fonte.outputAudioMixerGroup == null) fonte.outputAudioMixerGroup = grupo;
         return fonte;
     }
 
-    // ---------- Volume (agora quem manda é o Configuracoes) ----------
     public float GetSavedVolume(string key) =>
         key == MusicVolumeKey ? Configuracoes.VolumeMusica : Configuracoes.VolumeEfeitos;
 
@@ -124,7 +121,6 @@ public class AudioManager : MonoBehaviour
     public void SetMusicVolume(float volume) { Configuracoes.VolumeMusica = volume; Configuracoes.AplicarAudio(); }
     public void SaveSettings() => Configuracoes.Salvar();
 
-    // ---------- Música ----------
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         PlayMusic(scene.name == menuSceneName ? backgroundMusicMenu : backgroundMusicGameplay);
@@ -138,7 +134,6 @@ public class AudioManager : MonoBehaviour
         musicSource.Play();
     }
 
-    // ---------- SFX ----------
     public void PlaySFX(AudioClip clip, bool loop = false)
     {
         if (clip == null) return;
@@ -155,8 +150,6 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    // ---------- UI ----------
-    // usados pelo FocoVisual; o clipe passado substitui o padrão
     public void TocarClique(AudioClip clip = null) => PlaySFX(clip != null ? clip : ClickButton);
     public void TocarSelecao(AudioClip clip = null) => PlaySFX(clip != null ? clip : MouseEnter);
 

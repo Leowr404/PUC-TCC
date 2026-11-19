@@ -24,6 +24,7 @@ public class PaperClipLauncherTool : BaseTool
         if (clipPrefab != null && firePoint != null)
         {
             Instantiate(clipPrefab, firePoint.position, firePoint.rotation);
+            AudioManager.instancia?.PlaySFX(AudioManager.instancia.atirarGrampo);
         }
     }
 }

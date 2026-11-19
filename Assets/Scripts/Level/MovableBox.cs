@@ -43,8 +43,15 @@ public class MovableBox : MonoBehaviour
     // Chamado pelo desentupidor para agarrar a caixa
     public void AttachToTool(Transform holdPoint)
     {
+        bool wasAttached = isAttached;
+
         isAttached = true;
         attachedTransform = holdPoint;
+
+        if (!wasAttached)
+        {
+            AudioManager.instancia?.PlaySFX(AudioManager.instancia.empurrar);
+        }
 
         if (rb != null)
         {
