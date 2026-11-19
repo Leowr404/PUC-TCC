@@ -5,16 +5,26 @@ public class InputManager : MonoBehaviour
 {
     public static InputManager Instance; // Singleton simples
     private InputSystem_Actions inputActions;
-    CinemachineOrbitalFollow cinemachineOrbitalFollow;
+    private CinemachineOrbitalFollow cinemachineOrbitalFollow;
 
     public Vector2 Move { get; private set; }
     public bool Jump { get; private set; }
     public bool Sprint { get; private set; }
     public bool Interact { get; private set; }
+    public bool Pause { get; private set; }
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         inputActions = new InputSystem_Actions();
         cinemachineOrbitalFollow = FindAnyObjectByType<CinemachineOrbitalFollow>();
     }
@@ -49,7 +59,6 @@ public class InputManager : MonoBehaviour
     {
         if (inputActions == null) return;
 
-        // Lê valores crus do Input System
         Move = inputActions.Player.Move.ReadValue<Vector2>();
         Jump = inputActions.Player.Jump.WasPressedThisFrame();
         Sprint = inputActions.Player.Sprint.IsPressed();
