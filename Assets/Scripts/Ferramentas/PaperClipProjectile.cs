@@ -23,12 +23,14 @@ public class PaperClipProjectile : MonoBehaviour
         rb = (Rigidbody)GetComponent(typeof(Rigidbody));
         clipCollider = (Collider)GetComponent(typeof(Collider));
 
-        RegisterClip(this);
-
+        // Garante detecção contínua para projéteis rápidos não passarem direto
         if (rb != null)
         {
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.linearVelocity = transform.forward * speed;
         }
+
+        RegisterClip(this);
 
         Invoke(nameof(DestroySelf), lifeTimeInAir);
     }
@@ -41,8 +43,27 @@ public class PaperClipProjectile : MonoBehaviour
         float stepDistance = speed * Time.fixedDeltaTime;
         float radius = clipCollider != null ? clipCollider.bounds.extents.x : 0.2f;
 
-        if (Physics.SphereCast(transform.position, radius, transform.forward, out RaycastHit hit, stepDistance + 0.1f))
+        // Aumentamos levemente a margem de segurança para garantir o hit à distância
+        if (Physics.SphereCast(transform.position, radius, transform.forward, out RaycastHit hit, stepDistance + 0.3f))
         {
+            // --- NOVO: DETECÇÃO DA IMPRESSORA (BOSS) ---
+            PrinterBoss printer = hit.collider.GetComponent<PrinterBoss>();
+            if (printer != null)
+            {
+                printer.OnHitByPaperClip(null); // Atinge o boss
+                DestroySelf();
+                return;
+            }
+
+            // --- DETECÇÃO DO BOTÃO X / PUZZLE ---
+            ColorPuzzleTrigger puzzleTrigger = hit.collider.GetComponent<ColorPuzzleTrigger>();
+            if (puzzleTrigger != null)
+            {
+                puzzleTrigger.ActivateByLaser();
+                DestroySelf();
+                return;
+            }
+
             // Verifica se bateu numa parede (por Tag ou por Layer)
             bool isWall = hit.collider.CompareTag(wallTag) || ((1 << hit.collider.gameObject.layer) & wallLayer) != 0;
 
@@ -81,6 +102,24 @@ public class PaperClipProjectile : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (isAttachedToWall || other.CompareTag("Player")) return;
+
+        // --- NOVO: DETECÇÃO DA IMPRESSORA VIA TRIGGER ---
+        PrinterBoss printer = other.GetComponent<PrinterBoss>();
+        if (printer != null)
+        {
+            printer.OnHitByPaperClip(null);
+            DestroySelf();
+            return;
+        }
+
+        // --- DETECÇÃO DO BOTÃO X VIA TRIGGER ---
+        ColorPuzzleTrigger puzzleTrigger = other.GetComponent<ColorPuzzleTrigger>();
+        if (puzzleTrigger != null)
+        {
+            puzzleTrigger.ActivateByLaser();
+            DestroySelf();
+            return;
+        }
 
         PatrolEnemy enemy = (PatrolEnemy)other.GetComponent(typeof(PatrolEnemy));
         if (enemy != null)

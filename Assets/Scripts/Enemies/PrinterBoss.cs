@@ -3,7 +3,8 @@ using UnityEngine;
 
 public class PrinterBoss : MonoBehaviour
 {
-    public enum BossState { Patrol, Shooting, Reloading, Dash }
+    // Adicionamos novos estados para controlar o momento de recarga/gaveta e o grampeamento
+    public enum BossState { Patrol, Shooting, Reloading, Dash, StunnedByClip, Defeated }
 
     [Header("Estado Atual")]
     public BossState currentState = BossState.Patrol;
@@ -12,42 +13,54 @@ public class PrinterBoss : MonoBehaviour
     public Transform modelMesh;
 
     [Header("Movimentacao (Patrulha)")]
-    public Transform leftPoint;           // Ponto limite esquerdo
-    public Transform rightPoint;          // Ponto limite direito
-    public float moveSpeed = 3f;          // Velocidade de movimento normal
+    public Transform leftPoint;             // Ponto limite esquerdo
+    public Transform rightPoint;            // Ponto limite direito
+    public float moveSpeed = 3f;            // Velocidade de movimento normal
     public bool startFacingRight = false; // Defina no Inspector para qual lado ele começa olhando
     private bool movingRight;
 
     [Header("Ataque Especial (Investida / Dash)")]
-    public float dashSpeed = 10f;         // Velocidade da investida
-    public float dashStunTime = 1.5f;     // Tempo parado após o dash antes de voltar a patrulhar
+    public float dashSpeed = 10f;           // Velocidade da investida
+    public float dashStunTime = 1.5f;       // Tempo parado após o dash antes de voltar a patrulhar
     public float upwardDashForce = 15f;   // Força com que o jogador é lançado para CIMA no Dash
-    private Vector3 dashTargetPosition;   // Ponto fixo onde o jogador estava
+    private Vector3 dashTargetPosition;     // Ponto fixo onde o jogador estava
+
+    [Header("Mecânica do Puzzle (Grampo e Sensor)")]
+    public Transform paperTrayPoint;        // Ponto/Collider da gaveta de papel (onde o grampo deve acertar)
+    public Transform weakPointSensor;       // Ponto fraco (sensor traseiro) onde o laser deve acertar
+    public float reloadWindowDuration = 1f; // Janela exata de tempo em que a gaveta fica vulnerável ao grampo
+    private bool isRewindingPaper = false;  // Indica se está no momento exato de rebobinar
+
+    [Header("Configurações do Giro e Stun (Grampo)")]
+    public float spinDuration = 2f;         // Tempo que o boss fica girando após ser atingido pelo grampo
+    public float spinSpeed = 360f;          // Velocidade de rotação do giro por segundo
+    public float vulnerableDuration = 2f;   // Tempo parado (vulnerável) para o player acertar o laser
 
     [Header("Dano por Colisao Direta (Toque Normal)")]
     public float contactKnockback = 8f;   // Força do empurrão normal (fora do dash)
     public float contactStunDuration = 1f;// Tempo de stun ao tocar no jogador
 
     [Header("Visao e Deteccao por Area (Box)")]
-    public Transform sightOrigin;         // Ponto de onde sai a visao (Vision)
+    public Transform sightOrigin;           // Ponto de onde sai a visao (Vision)
     public Vector3 sightBoxSize = new Vector3(8f, 3f, 4f); // Largura (distância X), Altura (Y), Profundidade (Z)
-    public Vector3 sightOffset = Vector3.zero;             // Ajuste fino da posição da caixa no Inspector
-    public LayerMask playerLayer;         // Layer dos Jogadores
-    public LayerMask obstacleLayer;       // Layer de paredes/obstaculos
+    public Vector3 sightOffset = Vector3.zero;                 // Ajuste fino da posição da caixa no Inspector
+    public LayerMask playerLayer;           // Layer dos Jogadores
+    public LayerMask obstacleLayer;         // Layer de paredes/obstaculos
 
     [Header("Ataque de Papel")]
     public GameObject paperProjectilePrefab;   // Prefab padrao da folha de papel
     public Transform firePoint;                // Local de onde sai o papel
-    public int papersPerBurst = 5;             // Quantidade por rajada
-    public float fireRate = 0.2f;              // Intervalo entre tiros
-    public float projectileSpeed = 12f;        // Velocidade do papel
+    public int papersPerBurst = 5;               // Quantidade por rajada
+    public float fireRate = 0.2f;                // Intervalo entre tiros
+    public float projectileSpeed = 12f;          // Velocidade do papel
 
     [Header("Recarga")]
-    public float reloadTime = 3f;              // Tempo recarregando
-    private int burstCount = 0;                // Contador de rajadas de tiro efetuadas
+    public float reloadTime = 3f;                // Tempo recarregando
+    private int burstCount = 0;                  // Contador de rajadas de tiro efetuadas
 
     private Collider bossCollider;
     private Rigidbody rb;
+    private PlayerController3D targetPlayerForDash; // Guarda qual player usou o grampo (se necessário)
 
     void Start()
     {
@@ -78,11 +91,19 @@ public class PrinterBoss : MonoBehaviour
                 break;
 
             case BossState.Reloading:
-                // Fica parado enquanto recarrega
+                // Fica parado enquanto recarrega/rebobina papel
                 break;
 
             case BossState.Dash:
                 // O movimento de investida é processado pela Corrotina DoDashAttack()
+                break;
+
+            case BossState.StunnedByClip:
+                // Fica girando ou parado aguardando o tiro de laser no sensor traseiro
+                break;
+
+            case BossState.Defeated:
+                // Boss desligado/derrotado
                 break;
         }
     }
@@ -163,7 +184,7 @@ public class PrinterBoss : MonoBehaviour
         }
     }
 
-    // 3. ROTINA DE ATAQUE DE PAPEL
+    // 3. ROTINA DE ATAQUE DE PAPEL E REBOBINAGEM
     IEnumerator ShootBurstRoutine()
     {
         currentState = BossState.Shooting;
@@ -177,9 +198,20 @@ public class PrinterBoss : MonoBehaviour
         currentState = BossState.Reloading;
         burstCount++;
 
-        yield return new WaitForSeconds(reloadTime);
+        // MOMENTO DE REBOBINAR O PAPEL (Janela onde o player do grampo deve agir)
+        isRewindingPaper = true;
+        Debug.Log("Impressora começou a rebobinar o papel! Gaveta vulnerável.");
 
-        currentState = BossState.Patrol;
+        yield return new WaitForSeconds(reloadWindowDuration);
+        isRewindingPaper = false; // Fecha a janela de oportunidade
+
+        // Continua o tempo restante de recarga caso não tenha sido grampeada
+        yield return new WaitForSeconds(reloadTime - reloadWindowDuration);
+
+        if (currentState == BossState.Reloading)
+        {
+            currentState = BossState.Patrol;
+        }
     }
 
     void ShootPaper()
@@ -198,7 +230,34 @@ public class PrinterBoss : MonoBehaviour
         }
     }
 
-    // 4. ROTINA DE INVESTIDA (DASH)
+    // --- MÉTODOS DE INTERAÇÃO DO PUZZLE (CHAMADOS PELAS ARMAS DOS PLAYERS) ---
+
+    // Chamado pelo projétil do Lançador de Grampo quando acerta a gaveta no momento exato
+    public void OnHitByPaperClip(PlayerController3D attackingPlayer)
+    {
+        if (currentState == BossState.Reloading && isRewindingPaper)
+        {
+            Debug.Log("Grampo acertou a gaveta! Boss travou, perdeu colisão e começou a girar.");
+            isRewindingPaper = false;
+            targetPlayerForDash = attackingPlayer;
+
+            StopAllCoroutines();
+            StartCoroutine(ClipHitStunRoutine());
+        }
+    }
+
+    // Chamado pelo Laser quando atinge o ponto fraco enquanto está vulnerável
+    public void OnHitByLaserWeakPoint()
+    {
+        if (currentState == BossState.StunnedByClip)
+        {
+            Debug.Log("Ponto fraco atingido pelo Laser! A impressora foi destruída!");
+            currentState = BossState.Defeated;
+            Destroy(gameObject); // O objeto desaparece completamente
+        }
+    }
+
+    // 4. ROTINA DE INVESTIDA (DASH) PADRÃO
     IEnumerator DoDashAttack()
     {
         currentState = BossState.Dash;
@@ -216,9 +275,49 @@ public class PrinterBoss : MonoBehaviour
         currentState = BossState.Patrol;
     }
 
-    // 5. COLISÃO DIRETA COM O JOGADOR (ARREMESSO PARA CIMA NO DASH)
+    // 5. ROTINA DE ATORDOMENTO POR GRAMPO (Giro + Parada vulnerável)
+    IEnumerator ClipHitStunRoutine()
+    {
+        currentState = BossState.StunnedByClip;
+
+        // 1. Remove a física/colisão (players podem atravessar o boss)
+        if (bossCollider != null)
+        {
+            bossCollider.enabled = false;
+        }
+
+        // 2. Gira no lugar por 'spinDuration' segundos
+        float currentSpinTime = 0f;
+        while (currentSpinTime < spinDuration)
+        {
+            transform.Rotate(Vector3.up, spinSpeed * Time.deltaTime);
+            currentSpinTime += Time.deltaTime;
+            yield return null;
+        }
+
+        // 3. Fica completamente parado por 'vulnerableDuration' segundos (tempo para o laser acertar)
+        Debug.Log("Boss parou de girar. Vulnerável por 2 segundos!");
+        float stopTimer = vulnerableDuration;
+        while (stopTimer > 0f)
+        {
+            if (currentState == BossState.Defeated) yield break;
+            stopTimer -= Time.deltaTime;
+            yield return null;
+        }
+
+        // Se o laser não acertar a tempo, reativa a colisão e volta a patrulhar
+        if (bossCollider != null)
+        {
+            bossCollider.enabled = true;
+        }
+        currentState = BossState.Patrol;
+        burstCount = 0;
+    }
+
+    // 6. COLISÃO DIRETA COM O JOGADOR
     private void OnCollisionEnter(Collision collision)
     {
+        // Se a colisão estiver desativada (durante o giro), o código abaixo não executa
         PlayerController3D player = collision.gameObject.GetComponent<PlayerController3D>();
 
         if (player != null)
@@ -227,21 +326,19 @@ public class PrinterBoss : MonoBehaviour
 
             if (currentState == BossState.Dash)
             {
-                // Durante o Dash: Direciona a força fortemente para CIMA (eixo Y)
-                hitDirection.x *= 0.3f; // Reduz empurrão horizontal
+                hitDirection.x *= 0.3f;
                 hitDirection.z *= 0.3f;
-                hitDirection.y = 1.5f;  // Força vertical elevada
+                hitDirection.y = 1.5f;
 
                 player.TakeDamage(hitDirection.normalized * upwardDashForce, contactStunDuration);
             }
             else
             {
-                // Toque normal durante a patrulha
                 hitDirection.y = 0.4f;
                 player.TakeDamage(hitDirection * contactKnockback, contactStunDuration);
             }
 
-            player.DropCurrentTool(); // Solta a ferramenta ao ser atingido
+            player.DropCurrentTool();
         }
     }
 
