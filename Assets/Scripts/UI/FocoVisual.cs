@@ -6,9 +6,10 @@ using UnityEngine.UI;
 // Reproduz os estados do design (normal, selecionado, pressionado, desativado) com DOTween.
 // Move e gira só o filho "Visual", então não briga com o Vertical Layout Group.
 // Passar o mouse por cima seleciona o botão, igual a navegar com o controle.
+// Também toca os sons de seleção e clique (padrão vem do AudioManager).
 [DisallowMultipleComponent]
 public class FocoVisual : MonoBehaviour, ISelectHandler, IDeselectHandler,
-    IPointerEnterHandler, IPointerDownHandler, IPointerUpHandler
+    IPointerEnterHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler, ISubmitHandler
 {
     [Header("Alvo")]
     public Selectable alvo;
@@ -38,6 +39,15 @@ public class FocoVisual : MonoBehaviour, ISelectHandler, IDeselectHandler,
     public GameObject[] mostrarQuandoSelecionado;
     public GameObject[] mostrarQuandoDesativado;
 
+    [Header("Som")]
+    public bool tocarSom = true;
+    [Tooltip("Vazio = usa o MouseEnter do AudioManager")]
+    public AudioClip somSelecionar;
+    [Tooltip("Vazio = usa o ClickButton do AudioManager")]
+    public AudioClip somClicar;
+
+    float tempoAtivado;
+
     bool selecionado, pressionado, ultimoAtivo = true, iniciado;
     Vector2 posOriginal;
     Color[] coresTexto;
@@ -61,6 +71,7 @@ public class FocoVisual : MonoBehaviour, ISelectHandler, IDeselectHandler,
         Iniciar();
         pressionado = false;
         selecionado = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
+        tempoAtivado = Time.unscaledTime;
         Aplicar(false); // ao abrir o painel, já aparece no estado certo
     }
 
@@ -77,7 +88,13 @@ public class FocoVisual : MonoBehaviour, ISelectHandler, IDeselectHandler,
         if (ativo != ultimoAtivo) Aplicar(true);
     }
 
-    public void OnSelect(BaseEventData e) { selecionado = true; Aplicar(true); }
+    public void OnSelect(BaseEventData e)
+    {
+        selecionado = true;
+        Aplicar(true);
+        // não toca quando o painel acabou de abrir e já selecionou este botão sozinho
+        if (Time.unscaledTime - tempoAtivado > 0.1f) TocarSom(false);
+    }
     public void OnDeselect(BaseEventData e) { selecionado = false; pressionado = false; Aplicar(true); }
 
     public void OnPointerEnter(PointerEventData e)
@@ -88,6 +105,22 @@ public class FocoVisual : MonoBehaviour, ISelectHandler, IDeselectHandler,
 
     public void OnPointerDown(PointerEventData e) { pressionado = true; Aplicar(true); }
     public void OnPointerUp(PointerEventData e) { pressionado = false; Aplicar(true); }
+
+    public void OnPointerClick(PointerEventData e)
+    {
+        if (e.button == PointerEventData.InputButton.Left) TocarSom(true);
+    }
+
+    // Enter / botão do controle
+    public void OnSubmit(BaseEventData e) { TocarSom(true); }
+
+    void TocarSom(bool clique)
+    {
+        if (!tocarSom || AudioManager.instancia == null) return;
+        if (alvo != null && !alvo.IsInteractable()) return;
+        if (clique) AudioManager.instancia.TocarClique(somClicar);
+        else AudioManager.instancia.TocarSelecao(somSelecionar);
+    }
 
     public void Aplicar(bool animar)
     {

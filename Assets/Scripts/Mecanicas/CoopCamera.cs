@@ -1,8 +1,11 @@
+using DG.Tweening;
 using UnityEngine;
 
 // Controla a camera em jogos coop local mantendo ambos os jogadores no enquadramento
 public class CoopCamera : MonoBehaviour
 {
+    public static CoopCamera instancia; // usado pelo Feedback.TremerCamera
+
     [Header("Jogadores")]
     public Transform player1;
     public Transform player2;
@@ -22,9 +25,34 @@ public class CoopCamera : MonoBehaviour
     private Camera cam;
     private Vector3 velocity;
 
+    // Tremor: o DOTween anima este offset, que e somado por cima da posicao calculada
+    // (assim o tremor nao briga com o SmoothDamp que move a camera todo frame)
+    private Vector3 basePosition;
+    private Vector3 shakeOffset;
+    private Tween shakeTween;
+    private float shakeForce;
+
+    void Awake() { instancia = this; }
+
     void Start()
     {
         cam = GetComponent<Camera>();
+        basePosition = transform.position;
+    }
+
+    public void Shake(float force, float duration)
+    {
+        // um tremor mais forte substitui o mais fraco
+        if (shakeTween != null && shakeTween.IsActive() && force < shakeForce) return;
+
+        shakeTween?.Kill();
+        shakeForce = force;
+        shakeOffset = Vector3.zero;
+        shakeTween = DOTween.Shake(() => shakeOffset, x => shakeOffset = x, duration,
+                                   new Vector3(force, force, 0f), 20, 90f, true)
+            .SetUpdate(true) // treme mesmo com o jogo pausado/em camera lenta
+            .SetLink(gameObject)
+            .OnComplete(() => shakeOffset = Vector3.zero);
     }
 
     void LateUpdate()
@@ -34,6 +62,12 @@ public class CoopCamera : MonoBehaviour
 
         MoveCamera();
         ZoomCamera();
+        ApplyShake();
+    }
+
+    void ApplyShake()
+    {
+        transform.position = basePosition + shakeOffset;
     }
 
     void MoveCamera()
@@ -45,7 +79,7 @@ public class CoopCamera : MonoBehaviour
         Vector3 targetPosition = centerPoint + offset;
 
         // Move suavemente ate a posicao final
-        transform.position = Vector3.SmoothDamp(transform.position, targetPosition, ref velocity, smoothTime);
+        basePosition = Vector3.SmoothDamp(basePosition, targetPosition, ref velocity, smoothTime);
     }
 
     void ZoomCamera()

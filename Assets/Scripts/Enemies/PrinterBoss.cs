@@ -241,6 +241,9 @@ public class PrinterBoss : MonoBehaviour
             isRewindingPaper = false;
             targetPlayerForDash = attackingPlayer;
 
+            Feedback.TremerCamera(0.3f, 0.3f);
+            Feedback.Vibrar(attackingPlayer, 0.5f, 0.2f);
+
             StopAllCoroutines();
             StartCoroutine(ClipHitStunRoutine());
         }
@@ -253,6 +256,8 @@ public class PrinterBoss : MonoBehaviour
         {
             Debug.Log("Ponto fraco atingido pelo Laser! A impressora foi destruída!");
             currentState = BossState.Defeated;
+            Feedback.TremerCamera(0.6f, 0.6f);
+            Feedback.VibrarTodos(1f, 0.5f);
             Destroy(gameObject); // O objeto desaparece completamente
         }
     }

@@ -932,6 +932,9 @@ MonoBehaviour:
   - {fileID: 1057175971}
   mostrarQuandoDesativado:
   - {fileID: 684927887}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &58542090
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1273,6 +1276,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 1959972932}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
 --- !u!114 &66507031
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2409,6 +2415,9 @@ MonoBehaviour:
   sombraSoSelecionado: 0
   mostrarQuandoSelecionado: []
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!222 &111259822
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5773,7 +5782,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &246012157
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7224,6 +7233,9 @@ MonoBehaviour:
   - {fileID: 2107434760}
   - {fileID: 202862715}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &286891971
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8659,6 +8671,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 1352910394}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
 --- !u!114 &327559307
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9112,6 +9127,9 @@ MonoBehaviour:
   - {fileID: 627369938}
   - {fileID: 999883243}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &342733280
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12584,6 +12602,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 1172507349}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &487391672
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13176,6 +13197,9 @@ MonoBehaviour:
   - {fileID: 584624439}
   mostrarQuandoDesativado:
   - {fileID: 1715342963}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &516097147
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14130,6 +14154,9 @@ MonoBehaviour:
   - {fileID: 283817712}
   mostrarQuandoDesativado:
   - {fileID: 1744660766}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &530562689
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14773,6 +14800,9 @@ MonoBehaviour:
   - {fileID: 610824630}
   - {fileID: 337170112}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &538170691
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15656,6 +15686,9 @@ MonoBehaviour:
   - {fileID: 355156379}
   - {fileID: 1015851430}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &553850341
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19986,6 +20019,69 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 679738663}
   m_CullTransparentMesh: 1
+--- !u!1 &680345329
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 680345331}
+  - component: {fileID: 680345330}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &680345330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 680345329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b36972bf7f68564ba237cea7281f275, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  musicSource: {fileID: 0}
+  sfxSource: {fileID: 0}
+  loopingSfxSource: {fileID: 0}
+  menuSceneName: MainMenu
+  purchase: {fileID: 0}
+  rewardMoney: {fileID: 0}
+  HeavyHit: {fileID: 0}
+  Scream: {fileID: 8300000, guid: 7798c2e82b0cdf24e9c9260f230ec945, type: 3}
+  Coletavel: {fileID: 0}
+  Select: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
+  Hit: {fileID: 0}
+  Danger: {fileID: 0}
+  Explosion: {fileID: 0}
+  BossDeath: {fileID: 0}
+  backgroundMusicMenu: {fileID: 0}
+  backgroundMusicGameplay: {fileID: 0}
+  ClickButton: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
+  MouseEnter: {fileID: 0}
+  MouseClick: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
+--- !u!4 &680345331
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 680345329}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -346.86227, y: -0, z: 89.0676}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &680608999
 GameObject:
   m_ObjectHideFlags: 0
@@ -23354,6 +23450,9 @@ MonoBehaviour:
   - {fileID: 35448026}
   - {fileID: 1348392957}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &837976988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -25467,6 +25566,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 394277649}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!222 &903909201
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -26217,6 +26319,9 @@ MonoBehaviour:
   - {fileID: 1541440131}
   - {fileID: 907776902}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &925513987
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27060,6 +27165,9 @@ MonoBehaviour:
   - {fileID: 1706632892}
   - {fileID: 1475760832}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &959105816
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28037,6 +28145,9 @@ MonoBehaviour:
   - {fileID: 1230333955}
   - {fileID: 258012185}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &993456067
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28440,6 +28551,9 @@ MonoBehaviour:
   sombraSoSelecionado: 0
   mostrarQuandoSelecionado: []
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1009371132
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37778,6 +37892,9 @@ MonoBehaviour:
   - {fileID: 1123885974}
   - {fileID: 715604490}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1432956417
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -40618,6 +40735,9 @@ MonoBehaviour:
   - {fileID: 212330772}
   mostrarQuandoDesativado:
   - {fileID: 1084515159}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1505479749
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -43350,6 +43470,9 @@ MonoBehaviour:
   - {fileID: 414925821}
   - {fileID: 1028491852}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1589102028
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46122,6 +46245,9 @@ MonoBehaviour:
   - {fileID: 245262460}
   mostrarQuandoDesativado:
   - {fileID: 1570557266}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1703682805
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -49501,6 +49627,9 @@ MonoBehaviour:
   - {fileID: 1891281556}
   mostrarQuandoDesativado:
   - {fileID: 1314390194}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1838703485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -49890,6 +50019,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 1890985487}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!222 &1841141032
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -50160,6 +50292,9 @@ MonoBehaviour:
   - {fileID: 2101796196}
   - {fileID: 1532632260}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &1852457667
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52129,6 +52264,9 @@ MonoBehaviour:
   sombraSoSelecionado: 0
   mostrarQuandoSelecionado: []
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!222 &1954776061
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -53915,6 +54053,9 @@ MonoBehaviour:
   - {fileID: 1235252301}
   mostrarQuandoDesativado:
   - {fileID: 1540679246}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &2007707157
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56189,6 +56330,9 @@ MonoBehaviour:
   - {fileID: 200038250}
   mostrarQuandoDesativado:
   - {fileID: 140309079}
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!222 &2105593072
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -56290,6 +56434,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 157742555}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
 --- !u!114 &2106430941
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56513,6 +56660,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 1585887833}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
 --- !u!114 &2107444161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -57509,7 +57659,7 @@ MonoBehaviour:
   - {fileID: 58542092}
   - {fileID: 2105593069}
   cenasLevels:
-  - Sample2d
+  - Level1
   - Level2
   - Level3
   - Level4
@@ -58199,6 +58349,9 @@ MonoBehaviour:
   mostrarQuandoSelecionado:
   - {fileID: 246239667}
   mostrarQuandoDesativado: []
+  tocarSom: 1
+  somSelecionar: {fileID: 0}
+  somClicar: {fileID: 0}
 --- !u!114 &2146781392
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -58301,3 +58454,4 @@ SceneRoots:
   - {fileID: 532432490}
   - {fileID: 355825407}
   - {fileID: 2132512119}
+  - {fileID: 680345331}

@@ -10,6 +10,13 @@ public static class Feedback
 {
     // Use num objeto pai da câmera (um "suporte"): se a câmera é movida por script
     // todo frame, o tremor aplicado direto nela é sobrescrito.
+    // Treme a câmera do jogo (CoopCamera). Use este na gameplay.
+    public static void TremerCamera(float forca = 0.25f, float duracao = 0.3f)
+    {
+        if (!Configuracoes.TremorDeTela || CoopCamera.instancia == null) return;
+        CoopCamera.instancia.Shake(forca, duracao);
+    }
+
     public static void TremerCamera(Transform alvo, float forca = 0.25f, float duracao = 0.3f)
     {
         if (!Configuracoes.TremorDeTela || alvo == null) return;
@@ -25,6 +32,22 @@ public static class Feedback
         Vibrar(Gamepad.all[indice], intensidade, duracao);
     }
 
+    // vibra o(s) controle(s) do jogador (pega do PlayerInput dele)
+    public static void Vibrar(Component jogador, float intensidade = 0.6f, float duracao = 0.2f)
+    {
+        if (jogador == null) return;
+        var input = jogador.GetComponentInParent<PlayerInput>();
+        if (input == null) return;
+        foreach (var d in input.devices)
+            if (d is Gamepad g) Vibrar(g, intensidade, duracao);
+    }
+
+    // vibra todos os controles conectados (ex.: boss derrotado)
+    public static void VibrarTodos(float intensidade = 0.6f, float duracao = 0.2f)
+    {
+        foreach (var g in Gamepad.all) Vibrar(g, intensidade, duracao);
+    }
+
     // use esta versão se você já sabe o controle do jogador (ex.: PlayerInput.devices)
     public static void Vibrar(Gamepad controle, float intensidade = 0.6f, float duracao = 0.2f)
     {
@@ -34,5 +57,7 @@ public static class Feedback
     }
 #else
     public static void Vibrar(int indice, float intensidade = 0.6f, float duracao = 0.2f) { }
+    public static void Vibrar(Component jogador, float intensidade = 0.6f, float duracao = 0.2f) { }
+    public static void VibrarTodos(float intensidade = 0.6f, float duracao = 0.2f) { }
 #endif
 }
