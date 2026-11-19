@@ -115,6 +115,13 @@ public class LaserPointer : BaseTool
             {
                 colorBtn.ActivateByLaser();
             }
+
+            // --- NOVO: DETECÇÃO DO PONTO FRACO DA IMPRESSORA (BOSS) ---
+            PrinterWeakPoint weakPoint = hit.collider.GetComponent<PrinterWeakPoint>();
+            if (weakPoint != null)
+            {
+                weakPoint.HitByLaser();
+            }
         }
 
         lineRenderer.SetPosition(0, startPos);

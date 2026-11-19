@@ -46,11 +46,20 @@ public class PaperClipProjectile : MonoBehaviour
         // Aumentamos levemente a margem de segurança para garantir o hit à distância
         if (Physics.SphereCast(transform.position, radius, transform.forward, out RaycastHit hit, stepDistance + 0.3f))
         {
+            // --- NOVO: DETECÇÃO DA IMPRESSORA (BOSS) ---
+            PrinterBoss printer = hit.collider.GetComponent<PrinterBoss>();
+            if (printer != null)
+            {
+                printer.OnHitByPaperClip(null); // Atinge o boss
+                DestroySelf();
+                return;
+            }
+
             // --- DETECÇÃO DO BOTÃO X / PUZZLE ---
             ColorPuzzleTrigger puzzleTrigger = hit.collider.GetComponent<ColorPuzzleTrigger>();
             if (puzzleTrigger != null)
             {
-                puzzleTrigger.ActivateByLaser(); // Ou crie um método específico de tiro se preferir
+                puzzleTrigger.ActivateByLaser();
                 DestroySelf();
                 return;
             }
@@ -93,6 +102,15 @@ public class PaperClipProjectile : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (isAttachedToWall || other.CompareTag("Player")) return;
+
+        // --- NOVO: DETECÇÃO DA IMPRESSORA VIA TRIGGER ---
+        PrinterBoss printer = other.GetComponent<PrinterBoss>();
+        if (printer != null)
+        {
+            printer.OnHitByPaperClip(null);
+            DestroySelf();
+            return;
+        }
 
         // --- DETECÇÃO DO BOTÃO X VIA TRIGGER ---
         ColorPuzzleTrigger puzzleTrigger = other.GetComponent<ColorPuzzleTrigger>();

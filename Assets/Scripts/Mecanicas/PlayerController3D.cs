@@ -333,6 +333,20 @@ public class PlayerController3D : MonoBehaviour
         StartCoroutine(StunRoutine(duration));
     }
 
+    // Aplicado pelo vento: apenas empurra o jogador e dá stun leve, SEM dropar o equipamento
+    public void TakeWindKnockback(Vector3 knockback, float duration)
+    {
+        if (isStunned) return;
+
+        if (isCrouching) ToggleCrouch();
+
+        SetAttachedToWall(false);
+        rb.linearVelocity = Vector3.zero;
+        rb.AddForce(knockback, ForceMode.Impulse);
+
+        StartCoroutine(StunRoutine(duration));
+    }
+
     public void DropCurrentTool()
     {
         if (currentTool != null)
