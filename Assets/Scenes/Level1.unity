@@ -1585,6 +1585,10 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 3037489105833328610, guid: cf35ced1bf6d6af43bc63cde0a64e077, type: 3}
+      propertyPath: speed
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 3037489105833328610, guid: cf35ced1bf6d6af43bc63cde0a64e077, type: 3}
       propertyPath: pointA
       value: 
       objectReference: {fileID: 541487164}
@@ -2437,7 +2441,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2640283086051545832, guid: 68e15456df9667443a3820382646bf1d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -359.8
+      value: -358.4
       objectReference: {fileID: 0}
     - target: {fileID: 2640283086051545832, guid: 68e15456df9667443a3820382646bf1d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -3256,7 +3260,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -204.489
+      value: -212.79
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -4302,7 +4306,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -180.51973
+      value: -186.63
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -5393,7 +5397,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4144976698096858697, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -356.8
+      value: -354.3
       objectReference: {fileID: 0}
     - target: {fileID: 4144976698096858697, guid: 1a03c5abc4f16ef4390e08fd515abd19, type: 3}
       propertyPath: m_LocalPosition.y
@@ -5969,7 +5973,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -220.67348
+      value: -205.3
       objectReference: {fileID: 0}
     - target: {fileID: 8494472702376580531, guid: 8555fd23421cbd04892e07c9122ddd4d, type: 3}
       propertyPath: m_LocalPosition.y
@@ -6720,6 +6724,7 @@ MonoBehaviour:
   musicSource: {fileID: 0}
   sfxSource: {fileID: 0}
   loopingSfxSource: {fileID: 0}
+  sfxVolumeMultiplier: 0.1
   menuSceneName: Menu
   purchase: {fileID: 0}
   rewardMoney: {fileID: 0}
@@ -6732,7 +6737,7 @@ MonoBehaviour:
   Explosion: {fileID: 0}
   BossDeath: {fileID: 0}
   elevadorSubindo: {fileID: 8300000, guid: 2cb408aae0972c345a19a1d94f8d488e, type: 3}
-  andar: {fileID: 8300000, guid: 45a08679df4f56a4ea7699c0c78366e2, type: 3}
+  andar: {fileID: 0}
   atirarGrampo: {fileID: 8300000, guid: 8baa6164c0bca9a499abb9c934ae4acb, type: 3}
   empurrar: {fileID: 8300000, guid: 5397defc297145e4bb5cb5d322476f93, type: 3}
   bossAndando: {fileID: 8300000, guid: a19e055a003282847bbd695ecf601db6, type: 3}
@@ -6753,6 +6758,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 3037489105833328610, guid: cf35ced1bf6d6af43bc63cde0a64e077, type: 3}
+      propertyPath: speed
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 3037489105833328610, guid: cf35ced1bf6d6af43bc63cde0a64e077, type: 3}
       propertyPath: pointA
       value: 

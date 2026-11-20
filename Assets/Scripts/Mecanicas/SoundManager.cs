@@ -2,6 +2,7 @@
 using UnityEngine.Audio;
 using UnityEngine.SceneManagement;
 
+// Gerencia músicas, efeitos sonoros (SFX), looping e integração com Configuracoes e MixerPrincipal
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager instancia;
@@ -10,6 +11,11 @@ public class AudioManager : MonoBehaviour
     [SerializeField] AudioSource musicSource;
     [SerializeField] AudioSource sfxSource;
     [SerializeField] AudioSource loopingSfxSource;
+
+    [Header("Ajuste de Volume dos Efeitos")]
+    [Tooltip("Multiplica o volume dos efeitos (ex: 0.25 = bem mais baixo, 0.5 = metade).")]
+    [Range(0f, 1f)]
+    [SerializeField] float sfxVolumeMultiplier = 0.15f; // Deixa os efeitos bem mais baixos sem alterar o mixer na mão
 
     public const string SFXVolumeKey = "SFXVolume";
     public const string MusicVolumeKey = "MusicVolume";
@@ -52,6 +58,7 @@ public class AudioManager : MonoBehaviour
 
     void Awake()
     {
+        // Garante apenas uma instância global do AudioManager
         if (instancia != null && instancia != this)
         {
             Destroy(gameObject);
@@ -59,6 +66,7 @@ public class AudioManager : MonoBehaviour
         }
         instancia = this;
 
+        // Mantém o AudioManager vivo entre cenas se estiver em um GameObject próprio
         if (GetComponents<MonoBehaviour>().Length == 1)
         {
             transform.SetParent(null);
@@ -69,14 +77,18 @@ public class AudioManager : MonoBehaviour
             Debug.LogWarning("AudioManager: coloque este componente num GameObject só dele para a música não cortar entre cenas.", this);
         }
 
+        // Busca o mixer e os grupos de música e efeitos
         var mixer = Resources.Load<AudioMixer>("MixerPrincipal");
         var grupoMusica = Grupo(mixer, "Musica");
         var grupoEfeitos = Grupo(mixer, "Efeitos");
 
+        // Prepara as AudioSources e aplica o multiplicador de redução nos efeitos
         musicSource = Preparar(musicSource, "Musica", grupoMusica);
         sfxSource = Preparar(sfxSource, "SFX", grupoEfeitos);
         sfxSource.ignoreListenerPause = true;
         loopingSfxSource = Preparar(loopingSfxSource, "SFX Loop", grupoEfeitos);
+
+        AplicarMultiplicadorSFX();
     }
 
     void OnEnable() => SceneManager.sceneLoaded += OnSceneLoaded;
@@ -84,8 +96,23 @@ public class AudioManager : MonoBehaviour
 
     void Start()
     {
+        // Aplica as configurações salvas e reaplica a redução dos efeitos para não voltar alto ao iniciar
         Configuracoes.AplicarAudio();
+        AplicarMultiplicadorSFX();
         OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
+    }
+
+    void OnValidate()
+    {
+        // Atualiza em tempo real no Editor quando você mexer no slider sfxVolumeMultiplier
+        AplicarMultiplicadorSFX();
+    }
+
+    // Aplica o multiplicador de redução nas fontes de SFX
+    public void AplicarMultiplicadorSFX()
+    {
+        if (sfxSource != null) sfxSource.volume = sfxVolumeMultiplier;
+        if (loopingSfxSource != null) loopingSfxSource.volume = sfxVolumeMultiplier;
     }
 
     static AudioMixerGroup Grupo(AudioMixer mixer, string nome)
@@ -114,11 +141,23 @@ public class AudioManager : MonoBehaviour
         return fonte;
     }
 
+    // Retorna o volume salvo já aplicando a redução nos efeitos (usado também por fontes locais do boss)
     public float GetSavedVolume(string key) =>
-        key == MusicVolumeKey ? Configuracoes.VolumeMusica : Configuracoes.VolumeEfeitos;
+        key == MusicVolumeKey ? Configuracoes.VolumeMusica : Configuracoes.VolumeEfeitos * sfxVolumeMultiplier;
 
-    public void SetSFXVolume(float volume) { Configuracoes.VolumeEfeitos = volume; Configuracoes.AplicarAudio(); }
-    public void SetMusicVolume(float volume) { Configuracoes.VolumeMusica = volume; Configuracoes.AplicarAudio(); }
+    public void SetSFXVolume(float volume)
+    {
+        Configuracoes.VolumeEfeitos = volume;
+        Configuracoes.AplicarAudio();
+        AplicarMultiplicadorSFX();
+    }
+
+    public void SetMusicVolume(float volume)
+    {
+        Configuracoes.VolumeMusica = volume;
+        Configuracoes.AplicarAudio();
+    }
+
     public void SaveSettings() => Configuracoes.Salvar();
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -137,6 +176,8 @@ public class AudioManager : MonoBehaviour
     public void PlaySFX(AudioClip clip, bool loop = false)
     {
         if (clip == null) return;
+
+        AplicarMultiplicadorSFX();
 
         if (loop)
         {

@@ -6092,6 +6092,138 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 250040917}
   m_CullTransparentMesh: 1
+--- !u!1 &254777943
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 254777949}
+  - component: {fileID: 254777948}
+  - component: {fileID: 254777947}
+  - component: {fileID: 254777946}
+  - component: {fileID: 254777945}
+  - component: {fileID: 254777944}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &254777944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b36972bf7f68564ba237cea7281f275, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  musicSource: {fileID: 0}
+  sfxSource: {fileID: 0}
+  loopingSfxSource: {fileID: 0}
+  menuSceneName: Menu
+  purchase: {fileID: 0}
+  rewardMoney: {fileID: 0}
+  HeavyHit: {fileID: 0}
+  Scream: {fileID: 0}
+  Coletavel: {fileID: 0}
+  Select: {fileID: 0}
+  Hit: {fileID: 0}
+  Danger: {fileID: 0}
+  Explosion: {fileID: 0}
+  BossDeath: {fileID: 0}
+  elevadorSubindo: {fileID: 8300000, guid: 2cb408aae0972c345a19a1d94f8d488e, type: 3}
+  andar: {fileID: 8300000, guid: 45a08679df4f56a4ea7699c0c78366e2, type: 3}
+  atirarGrampo: {fileID: 8300000, guid: 8baa6164c0bca9a499abb9c934ae4acb, type: 3}
+  empurrar: {fileID: 8300000, guid: 5397defc297145e4bb5cb5d322476f93, type: 3}
+  bossAndando: {fileID: 8300000, guid: a19e055a003282847bbd695ecf601db6, type: 3}
+  bossAtirando: {fileID: 8300000, guid: 390bee4eb654a0a459d1d8730c2c7ec2, type: 3}
+  bossRecarregando: {fileID: 8300000, guid: 5b3803914dcc64a418c598ffab4099c4, type: 3}
+  bossDanoGrampo: {fileID: 8300000, guid: d4d36554daa5df643942226ed0bf606e, type: 3}
+  backgroundMusicMenu: {fileID: 0}
+  backgroundMusicGameplay: {fileID: 0}
+  musicaElevador: {fileID: 8300000, guid: a55627bd47f68c9468dcf19700c31f31, type: 3}
+  ClickButton: {fileID: 0}
+  MouseEnter: {fileID: 0}
+  MouseClick: {fileID: 0}
+--- !u!114 &254777945
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d38418737fb95e4d94f749141a3cece, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ColorPuzzleManager
+  wallButtons:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  targetDoor: {fileID: 0}
+--- !u!114 &254777946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83d6363d902c6a64d820bb51835614cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InputManager
+--- !u!114 &254777947
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 155cb65b335db43498bcf77e3ffed8b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelSettings
+  targetTimeForThisLevel: 120
+  maxSpeedBonusForThisLevel: 1000
+--- !u!114 &254777948
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3be400bb05c8c1a468f021a158a956d3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LevelResetter
+  resetKey: 114
+--- !u!4 &254777949
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254777943}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -12.67146, y: -9.57808, z: 28.29495}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &257384988
 GameObject:
   m_ObjectHideFlags: 0
@@ -20062,8 +20194,17 @@ MonoBehaviour:
   Danger: {fileID: 0}
   Explosion: {fileID: 0}
   BossDeath: {fileID: 0}
+  elevadorSubindo: {fileID: 0}
+  andar: {fileID: 0}
+  atirarGrampo: {fileID: 0}
+  empurrar: {fileID: 0}
+  bossAndando: {fileID: 0}
+  bossAtirando: {fileID: 0}
+  bossRecarregando: {fileID: 0}
+  bossDanoGrampo: {fileID: 0}
   backgroundMusicMenu: {fileID: 0}
   backgroundMusicGameplay: {fileID: 0}
+  musicaElevador: {fileID: 0}
   ClickButton: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
   MouseEnter: {fileID: 0}
   MouseClick: {fileID: 8300000, guid: a592829433a87474aa2de9485716db96, type: 3}
@@ -58455,3 +58596,4 @@ SceneRoots:
   - {fileID: 355825407}
   - {fileID: 2132512119}
   - {fileID: 680345331}
+  - {fileID: 254777949}

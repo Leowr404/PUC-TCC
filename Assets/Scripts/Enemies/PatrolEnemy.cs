@@ -14,7 +14,9 @@ public class PatrolEnemy : MonoBehaviour
     public float stunDuration = 1.0f;   // Tempo em segundos que o jogador fica paralisado
 
     [Header("Derrota pelo Vento")]
-    public AudioClip windDeathSound;    // Efeito sonoro ao ser lançado pelo vento
+    public AudioClip windDeathSound;                // Efeito sonoro ao ser lançado pelo vento
+    [Range(0f, 1f)]
+    public float windDeathSoundChance = 0.25f;    // Chance de tocar o som (0.25 = 25%)
 
     private Vector3 targetPosition;     // Guarda a posicao atual para onde o inimigo caminha
     private float freezeTimer = 0f;     // Tempo restante que o inimigo fica congelado/parado
@@ -139,8 +141,8 @@ public class PatrolEnemy : MonoBehaviour
             rb.AddTorque(Random.insideUnitSphere * 15f, ForceMode.Impulse);
         }
 
-        // 3. Toca o efeito sonoro
-        if (windDeathSound != null)
+        // 3. Toca o efeito sonoro com 25% de chance (ou o valor definido no Inspector)
+        if (windDeathSound != null && Random.value < windDeathSoundChance)
         {
             AudioSource.PlayClipAtPoint(windDeathSound, transform.position);
         }
