@@ -1,29 +1,30 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+// Controla movimentação, pulo, agachar, interação, ferramentas, dano e limite de afastamento da CoopCamera
 public class PlayerController3D : MonoBehaviour
 {
     public enum PlayerIndex { Player1, Player2 }
 
     [Header("Identificacao do Jogador")]
-    public PlayerIndex playerIndex = PlayerIndex.Player1;
+    public PlayerIndex playerIndex = PlayerIndex.Player1; // Define controles e identidade do jogador
 
     [Header("Configuracoes de Movimento")]
-    public float moveSpeed = 8f;
-    public float crouchSpeed = 4f;
-    public float jumpForce = 10f;
+    public float moveSpeed = 8f;   // Velocidade horizontal padrão
+    public float crouchSpeed = 4f; // Velocidade horizontal enquanto agachado
+    public float jumpForce = 10f;  // Impulso vertical aplicado ao pular
 
     [Header("Configuracoes de Agachar")]
     [Range(0.2f, 0.9f)]
-    public float crouchHeightRatio = 0.5f;
-    public bool isCrouching = false;
+    public float crouchHeightRatio = 0.5f; // Proporção da altura do CapsuleCollider ao agachar
+    public bool isCrouching = false;       // Estado atual de agachamento
 
     [Header("Ajuste de Gravidade")]
-    public float fallMultiplier = 2.5f;
-    public float lowJumpMultiplier = 2f;
+    public float fallMultiplier = 2.5f; // Multiplicador de gravidade na queda para deixar o salto mais firme
+    public float lowJumpMultiplier = 2f;  // Multiplicador ao soltar o botão de pulo cedo
 
     [Header("Ponto de Encaixe da Ferramenta")]
-    public Transform toolHoldPoint;
+    public Transform toolHoldPoint; // Local onde a ferramenta equipada é instanciada
 
     private BaseTool currentTool;
     private GameObject currentToolPrefab;
@@ -33,6 +34,7 @@ public class PlayerController3D : MonoBehaviour
     private bool isAttachedToWall;
     private float horizontalInput;
     private bool isWalkingSoundPlaying;
+    private bool isBlockedByCamera;
 
     private Toolbox nearbyToolbox;
     private StorageToolbox nearbyStorageBox;
@@ -60,6 +62,7 @@ public class PlayerController3D : MonoBehaviour
         targetYRotation = transform.eulerAngles.y;
     }
 
+    // Configura as teclas padrão de teclado para Player 1 ou Player 2
     void SetupKeyboardKeys()
     {
         if (playerIndex == PlayerIndex.Player1)
@@ -93,9 +96,11 @@ public class PlayerController3D : MonoBehaviour
         LaserPointer laserTool = currentTool as LaserPointer;
         bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
 
+        // Trava deslocamento horizontal e agachamento enquanto o laser está bloqueando o movimento
         if (isLaserActive)
         {
             horizontalInput = 0f;
+            isBlockedByCamera = false;
             StopWalkSound();
 
             if (isCrouching)
@@ -113,9 +118,10 @@ public class PlayerController3D : MonoBehaviour
         UpdateWalkSound();
     }
 
+    // Toca ou interrompe o som contínuo de passos conforme estado no chão e movimento efetivo
     private void UpdateWalkSound()
     {
-        bool shouldWalk = isGrounded && !isAttachedToWall && Mathf.Abs(horizontalInput) > 0.01f;
+        bool shouldWalk = isGrounded && !isAttachedToWall && !isBlockedByCamera && Mathf.Abs(horizontalInput) > 0.01f;
 
         if (shouldWalk && !isWalkingSoundPlaying)
         {
@@ -131,6 +137,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Para o áudio em loop de passos se estiver ativo
     private void StopWalkSound()
     {
         if (!isWalkingSoundPlaying) return;
@@ -139,6 +146,7 @@ public class PlayerController3D : MonoBehaviour
         isWalkingSoundPlaying = false;
     }
 
+    // Lê entradas de teclado para andar, pular, agachar e interagir
     private void ProcessKeyboardInput()
     {
         horizontalInput = 0f;
@@ -164,6 +172,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Aplica impulso vertical de pulo e reseta velocidade Y anterior
     private void ExecuteJump()
     {
         StopWalkSound();
@@ -180,6 +189,7 @@ public class PlayerController3D : MonoBehaviour
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
     }
 
+    // Interage com caixas próximas ou aciona a ferramenta equipada
     private void ExecuteInteract()
     {
         if (nearbyToolbox != null)
@@ -204,11 +214,13 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Toca efeito sonoro de empurrar
     public void PlayPushSound()
     {
         AudioManager.instancia?.PlaySFX(AudioManager.instancia.empurrar);
     }
 
+    // Callback do Player Input para pulo
     public void OnJump(InputValue value)
     {
         LaserPointer laserTool = currentTool as LaserPointer;
@@ -220,6 +232,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Callback do Player Input para interação
     public void OnInteract(InputValue value)
     {
         if (value.isPressed)
@@ -228,6 +241,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Callback do Player Input para agachar
     public void OnSprint(InputValue value)
     {
         LaserPointer laserTool = currentTool as LaserPointer;
@@ -239,6 +253,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Verifica contato com chão através de normais voltadas para cima
     private void OnCollisionStay(Collision collision)
     {
         foreach (ContactPoint contact in collision.contacts)
@@ -256,6 +271,7 @@ public class PlayerController3D : MonoBehaviour
         isGrounded = false;
     }
 
+    // Aplica rotação, velocidade horizontal (com bloqueio na borda de afastamento da câmera) e gravidade customizada
     void FixedUpdate()
     {
         if (isAttachedToWall) return;
@@ -263,7 +279,21 @@ public class PlayerController3D : MonoBehaviour
         transform.rotation = Quaternion.Euler(0, targetYRotation, 0);
 
         float currentSpeed = isCrouching ? crouchSpeed : moveSpeed;
-        rb.linearVelocity = new Vector3(horizontalInput * currentSpeed, rb.linearVelocity.y, rb.linearVelocity.z);
+        float vx = horizontalInput * currentSpeed;
+        isBlockedByCamera = false;
+
+        // Impede que o jogador ultrapasse o limite de afastamento horizontal em relação ao outro player
+        if (CoopCamera.instancia != null)
+        {
+            int blockedDir = CoopCamera.instancia.GetBlockedHorizontalDirection(transform);
+            if ((blockedDir < 0 && vx < 0f) || (blockedDir > 0 && vx > 0f))
+            {
+                vx = 0f;
+                isBlockedByCamera = true;
+            }
+        }
+
+        rb.linearVelocity = new Vector3(vx, rb.linearVelocity.y, rb.linearVelocity.z);
 
         if (rb.linearVelocity.y < 0)
         {
@@ -275,6 +305,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Alterna entre altura normal e altura reduzida do collider ao agachar
     public void ToggleCrouch()
     {
         isCrouching = !isCrouching;
@@ -292,6 +323,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Prende ou solta o jogador de uma parede (modo cinemático quando preso)
     public void SetAttachedToWall(bool attach)
     {
         isAttachedToWall = attach;
@@ -303,6 +335,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Instancia e equipa uma ferramenta a partir de um prefab
     public void EquipToolPrefab(GameObject newToolPrefab)
     {
         if (currentTool != null)
@@ -325,6 +358,7 @@ public class PlayerController3D : MonoBehaviour
         return currentToolPrefab;
     }
 
+    // Detecta aproximação de caixas interativas
     private void OnTriggerEnter(Collider other)
     {
         Toolbox box = other.GetComponent<Toolbox>();
@@ -349,6 +383,7 @@ public class PlayerController3D : MonoBehaviour
         if (connectedBox != null && nearbyConnectedBox == connectedBox) nearbyConnectedBox = null;
     }
 
+    // Aplica dano, knockback, feedback audiovisual e atordoamento temporário
     public void TakeDamage(Vector3 knockback, float duration)
     {
         if (isStunned) return;
@@ -370,6 +405,7 @@ public class PlayerController3D : MonoBehaviour
         StartCoroutine(StunRoutine(duration));
     }
 
+    // Aplica empurrão de vento sem tocar som de dano padrão
     public void TakeWindKnockback(Vector3 knockback, float duration)
     {
         if (isStunned) return;
@@ -387,6 +423,7 @@ public class PlayerController3D : MonoBehaviour
         StartCoroutine(StunRoutine(duration));
     }
 
+    // Remove e limpa a ferramenta equipada atualmente
     public void DropCurrentTool()
     {
         if (currentTool != null)
@@ -397,6 +434,7 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    // Mantém o jogador atordoado pelo tempo especificado
     private System.Collections.IEnumerator StunRoutine(float duration)
     {
         isStunned = true;

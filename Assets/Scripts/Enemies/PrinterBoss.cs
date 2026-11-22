@@ -1,34 +1,37 @@
 using System.Collections;
 using UnityEngine;
 
-// Controla o comportamento, estados, ataques, mecânica do puzzle e efeitos sonoros do PrinterBoss
+// Controla o comportamento, estados, ataques, mecânica do puzzle, animação e efeitos sonoros do PrinterBoss
 public class PrinterBoss : MonoBehaviour
 {
     // Estados possíveis da máquina de estados do boss
     public enum BossState { Patrol, Shooting, Reloading, Dash, StunnedByClip, Defeated }
 
     [Header("Estado Atual")]
-    
     public BossState currentState = BossState.Patrol;
 
     [Header("Modelo 3D (Opcional)")]
-   
-    public Transform modelMesh;
+    public Transform modelMesh; // Objeto visual filho que gira e exibe a animação
+    [Tooltip("Ajuste fino de rotação em Y (ex: 90 ou -90) caso o modelo ande de lado.")]
+    public float facingYawOffset = 90f;
+
+    [Header("Animação")]
+    public Animator animator; // Animator vinculado ao modelo do boss
 
     [Header("Movimentacao (Patrulha)")]
-    public Transform leftPoint; 
-    public Transform rightPoint; 
-    public float moveSpeed = 3f; 
-    public bool startFacingRight = false; 
+    public Transform leftPoint;
+    public Transform rightPoint;
+    public float moveSpeed = 3f;
+    public bool startFacingRight = false;
     public float walkSoundInterval = 0.45f; // Intervalo mínimo entre sons de passo na patrulha
     public float maxSoundDistance = 20f; // Distância máxima em que os players ouvem o som de patrulha
-    private bool movingRight; 
+    private bool movingRight;
     private float nextWalkSoundTime; // Timestamp que controla quando o próximo passo pode tocar
 
     [Header("Ataque Especial (Investida / Dash)")]
-    public float dashSpeed = 10f; 
-    public float dashStunTime = 1.5f; 
-    public float upwardDashForce = 15f; 
+    public float dashSpeed = 10f;
+    public float dashStunTime = 1.5f;
+    public float upwardDashForce = 15f;
     private Vector3 dashTargetPosition; // Posição alvo capturada no início do dash
 
     [Header("Mecânica do Puzzle (Grampo e Sensor)")]
@@ -38,41 +41,40 @@ public class PrinterBoss : MonoBehaviour
     private bool isRewindingPaper = false; // Verdadeiro apenas durante a janela vulnerável da recarga
 
     [Header("Configurações do Giro e Stun (Grampo)")]
-    public float spinDuration = 2f; 
-    public float spinSpeed = 360f; 
+    public float spinDuration = 2f;
+    public float spinSpeed = 360f;
     public float vulnerableDuration = 2f; // Tempo parado e vulnerável ao laser após parar de girar
 
     [Header("Dano por Colisao Direta (Toque Normal)")]
     public float contactKnockback = 8f; // Força de empurrão em colisão normal (fora do dash)
-    public float contactStunDuration = 1f; 
+    public float contactStunDuration = 1f;
 
     [Header("Visao e Deteccao por Area (Box)")]
     public Transform sightOrigin; // Ponto de origem da área de visão (usa o próprio transform se vazio)
     public Vector3 sightBoxSize = new Vector3(8f, 3f, 4f); // Dimensões da caixa de detecção (X, Y, Z)
     public Vector3 sightOffset = Vector3.zero; // Deslocamento adicional da caixa de visão
     public LayerMask playerLayer; // Layer usada para identificar os jogadores
-    public LayerMask obstacleLayer; 
+    public LayerMask obstacleLayer;
 
     [Header("Ataque de Papel")]
-    public GameObject paperProjectilePrefab; 
-    public Transform firePoint; 
-    public int papersPerBurst = 5; 
-    public float fireRate = 0.2f; 
-    public float projectileSpeed = 12f; 
+    public GameObject paperProjectilePrefab;
+    public Transform firePoint;
+    public int papersPerBurst = 5;
+    public float fireRate = 0.2f;
+    public float projectileSpeed = 12f;
 
     [Header("Recarga")]
-    public float reloadTime = 3f; 
+    public float reloadTime = 3f;
     private int burstCount = 0; // Conta quantas rajadas foram feitas até o próximo dash
 
-    private Collider bossCollider; 
-    private Rigidbody rb; 
+    private Collider bossCollider;
+    private Rigidbody rb;
     private AudioSource reloadAudioSource; // Fonte dedicada ao som de recarga para evitar sobreposição/vazamento
     private AudioSource shootAudioSource; // Fonte dedicada ao tiro de papel para cortar o disparo anterior
     private PlayerController3D targetPlayerForDash; // Guarda o jogador que acertou o grampo
 
     void Start()
     {
-   
         bossCollider = GetComponent<Collider>();
         rb = GetComponent<Rigidbody>();
 
@@ -114,6 +116,8 @@ public class PrinterBoss : MonoBehaviour
 
     void Update()
     {
+        UpdateAnimationState();
+
         // Executa apenas a lógica correspondente ao estado atual do boss
         switch (currentState)
         {
@@ -137,6 +141,13 @@ public class PrinterBoss : MonoBehaviour
             case BossState.Defeated:
                 break;
         }
+    }
+
+    // Mantém a animação de caminhada rodando apenas quando o boss está em patrulha
+    private void UpdateAnimationState()
+    {
+        if (animator == null) return;
+        animator.speed = (currentState == BossState.Patrol) ? 1f : 0f;
     }
 
     // Verifica se há ao menos um player dentro do raio sonoro configurado
@@ -212,13 +223,15 @@ public class PrinterBoss : MonoBehaviour
         }
     }
 
-    // Espelha o eixo X visual de acordo com a direção da patrulha
+    // Rotaciona o modelo visual no eixo Y somando o offset de alinhamento do modelo
     void ApplyFacingVisual()
     {
         Transform targetTransform = modelMesh != null ? modelMesh : transform;
-        Vector3 scale = targetTransform.localScale;
-        scale.x = Mathf.Abs(scale.x) * (movingRight ? 1f : -1f);
-        targetTransform.localScale = scale;
+        float baseYaw = movingRight ? 90f : -90f;
+        float finalYaw = baseYaw + facingYawOffset;
+
+        Vector3 currentEuler = targetTransform.localEulerAngles;
+        targetTransform.localEulerAngles = new Vector3(currentEuler.x, finalYaw, currentEuler.z);
     }
 
     // Retorna o vetor de direção frontal atual do boss
