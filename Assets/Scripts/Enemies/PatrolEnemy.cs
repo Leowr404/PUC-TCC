@@ -18,27 +18,35 @@ public class PatrolEnemy : MonoBehaviour
     [Range(0f, 1f)]
     public float windDeathSoundChance = 0.25f;    // Chance de tocar o som (0.25 = 25%)
 
-    private Vector3 targetPosition;     // Guarda a posicao atual para onde o inimigo caminha
-    private float freezeTimer = 0f;     // Tempo restante que o inimigo fica congelado/parado
+    private Vector3 targetPosition;
+    private float freezeTimer;
     private Rigidbody rb;
-    private bool isDefeatedByWind = false;
+    private Collider enemyCollider;
+    private Transform selfTransform;
+    private bool isDefeatedByWind;
 
     // --- ATRACAO PELO LASER ---
-    private bool isChasingLaser = false;
+    private bool isChasingLaser;
     private Vector3 laserPointTarget;
+
+    // Buffer reutilizável para evitar alocação em Raycast
+    private static readonly RaycastHit[] groundHits = new RaycastHit[1];
+    private static readonly Quaternion rightRotation = Quaternion.Euler(0f, 90f, 0f);
+    private static readonly Quaternion leftRotation = Quaternion.Euler(0f, -90f, 0f);
 
     void Start()
     {
+        selfTransform = transform;
         rb = GetComponent<Rigidbody>();
+        enemyCollider = GetComponent<Collider>();
+
         if (rb != null)
         {
-            // Permite que a gravidade e o Rigidbody atuem corretamente na slope
             rb.isKinematic = false;
             rb.useGravity = true;
             rb.constraints = RigidbodyConstraints.FreezeRotation;
         }
 
-        // Define o Ponto B como primeiro objetivo e ajusta o olhar do inimigo
         if (pointA != null && pointB != null)
         {
             targetPosition = pointB.position;
@@ -50,25 +58,22 @@ public class PatrolEnemy : MonoBehaviour
     {
         if (isDefeatedByWind) return;
 
-        // Se estiver congelado por causa do clipe, decrementa o tempo e nao se move
         if (freezeTimer > 0f)
         {
             freezeTimer -= Time.deltaTime;
-            return; // Interrompe o Update aqui para impedir a movimentação
+            return;
         }
+
+        Vector3 pos = selfTransform.position;
+        float step = speed * Time.deltaTime;
 
         // --- SE ESTIVER SENDO ATRAIDO PELA PONTA DO LASER ---
         if (isChasingLaser)
         {
-            // Calcula a posição no plano horizontal em direção ao laser, ajustando a altura pelo chão
-            Vector3 groundLaserTarget = GetPointOnGround(new Vector3(laserPointTarget.x, transform.position.y + 2f, laserPointTarget.z));
-
-            // Caminha em direcao ao laser ajustando-se à slope
-            transform.position = Vector3.MoveTowards(transform.position, groundLaserTarget, speed * Time.deltaTime);
+            Vector3 groundLaserTarget = GetPointOnGround(new Vector3(laserPointTarget.x, pos.y + 2f, laserPointTarget.z));
+            selfTransform.position = Vector3.MoveTowards(pos, groundLaserTarget, step);
             UpdateRotationToTarget(groundLaserTarget);
 
-            // Reseta o estado. Se o laser continuar ativo no proximo frame,
-            // SetLaserTarget sera chamada novamente mantendo a perseguição.
             isChasingLaser = false;
             return;
         }
@@ -76,31 +81,23 @@ public class PatrolEnemy : MonoBehaviour
         // --- MOVIMENTACAO NORMAL DE PATRULHA ---
         if (pointA == null || pointB == null) return;
 
-        // Pega a posição alvo de patrulha ajustada à inclinação do terreno (slope)
-        Vector3 groundTargetPosition = GetPointOnGround(new Vector3(targetPosition.x, transform.position.y + 2f, targetPosition.z));
-        transform.position = Vector3.MoveTowards(transform.position, groundTargetPosition, speed * Time.deltaTime);
+        Vector3 groundTargetPosition = GetPointOnGround(new Vector3(targetPosition.x, pos.y + 2f, targetPosition.z));
+        selfTransform.position = Vector3.MoveTowards(pos, groundTargetPosition, step);
 
-        // Verifica se chegou proximo do ponto limite de patrulha
-        if (Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z),
-                             new Vector3(targetTargetX(targetPosition), 0, targetPosition.z)) < 0.05f ||
-            Vector3.Distance(new Vector3(transform.position.x, 0, transform.position.z), new Vector3(targetPosition.x, 0, targetPosition.z)) < 0.05f)
+        float dx = Mathf.Abs(selfTransform.position.x - targetPosition.x);
+        float dz = Mathf.Abs(selfTransform.position.z - targetPosition.z);
+        if (dx < 0.05f && dz < 0.05f)
         {
             SwitchDirection();
         }
     }
 
-    // Método auxiliar para pegar o X de um Vector3 com segurança
-    float targetTargetX(Vector3 pos) => pos.x;
-
-    // Joga um raio de cima para baixo para encontrar a altura exata do chão (slope)
+    // Joga um raio de cima para baixo para encontrar a altura exata do chão (slope) sem alocar lixo
     Vector3 GetPointOnGround(Vector3 target)
     {
         Vector3 rayStart = target + Vector3.up * 3f;
-        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10f, groundLayer))
-        {
-            return hit.point; // Retorna o ponto exato colado na slope
-        }
-        return target; // Se não achar o chão, mantém o alvo original
+        int hitCount = Physics.RaycastNonAlloc(rayStart, Vector3.down, groundHits, 10f, groundLayer, QueryTriggerInteraction.Ignore);
+        return hitCount > 0 ? groundHits[0].point : target;
     }
 
     // Chamado pelo LaserPointer quando a ponta do laser esta no alcance deste inimigo
@@ -122,32 +119,27 @@ public class PatrolEnemy : MonoBehaviour
         if (isDefeatedByWind) return;
         isDefeatedByWind = true;
 
-        // 1. Para toda a IA e lógica de movimento
         enabled = false;
 
-        // 2. Remove todas as colisões (os players podem atravessar)
-        Collider col = GetComponent<Collider>();
-        if (col != null) col.enabled = false;
+        if (enemyCollider != null)
+        {
+            enemyCollider.enabled = false;
+        }
 
         if (rb != null)
         {
             rb.isKinematic = false;
             rb.useGravity = true;
-            // Destrava rotações para dar o efeito de "Ragdoll" / cambalhota no ar
             rb.constraints = RigidbodyConstraints.None;
-
-            // Aplica a força do vento lançando para fora do mapa
             rb.AddForce(forceVector, ForceMode.Impulse);
             rb.AddTorque(Random.insideUnitSphere * 15f, ForceMode.Impulse);
         }
 
-        // 3. Toca o efeito sonoro com 25% de chance (ou o valor definido no Inspector)
         if (windDeathSound != null && Random.value < windDeathSoundChance)
         {
-            AudioSource.PlayClipAtPoint(windDeathSound, transform.position);
+            AudioSource.PlayClipAtPoint(windDeathSound, selfTransform.position);
         }
 
-        // 4. Desaparece (destrói o objeto) após 3 segundos
         Destroy(gameObject, 3f);
     }
 
@@ -156,25 +148,22 @@ public class PatrolEnemy : MonoBehaviour
     {
         if (pointA == null || pointB == null) return;
 
-        // Se o destino atual e o Ponto B, muda para o Ponto A, e vice-versa
         targetPosition = (targetPosition == pointA.position) ? pointB.position : pointA.position;
-
-        // Atualiza a rotacao para olhar para a nova direcao
         UpdateRotationToTarget(targetPosition);
     }
 
     // Calcula a direcao e vira o modelo do inimigo para a direcao informada
     void UpdateRotationToTarget(Vector3 destination)
     {
-        float directionX = destination.x - transform.position.x;
+        float directionX = destination.x - selfTransform.position.x;
 
         if (directionX > 0.05f)
         {
-            transform.rotation = Quaternion.Euler(0, 90f, 0);  // Olhando para a direita
+            selfTransform.rotation = rightRotation;
         }
         else if (directionX < -0.05f)
         {
-            transform.rotation = Quaternion.Euler(0, -90f, 0); // Olhando para a esquerda
+            selfTransform.rotation = leftRotation;
         }
     }
 
@@ -183,10 +172,9 @@ public class PatrolEnemy : MonoBehaviour
     {
         if (isDefeatedByWind) return;
 
-        PlayerController3D player = (PlayerController3D)collision.gameObject.GetComponent(typeof(PlayerController3D));
-        if (player != null)
+        if (collision.gameObject.TryGetComponent(out PlayerController3D player))
         {
-            Vector3 hitDirection = (player.transform.position - transform.position).normalized;
+            Vector3 hitDirection = (player.transform.position - selfTransform.position).normalized;
             hitDirection.y = 0.5f;
 
             player.TakeDamage(hitDirection * knockbackForce, stunDuration);

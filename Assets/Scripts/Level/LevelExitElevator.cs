@@ -11,91 +11,100 @@ public class LevelExitElevator : MonoBehaviour
     public float riseDuration = 2f; // Duração da subida em segundos antes de trocar de cena
     public Transform elevatorPlatform; // Plataforma/objeto que sobe; usa o próprio transform se vazio
 
-    private HashSet<GameObject> playersInElevator = new HashSet<GameObject>(); // Jogadores atualmente dentro do gatilho
-    private bool isElevatorActivated = false; // Evita disparar a sequência mais de uma vez
+    private readonly HashSet<GameObject> playersInElevator = new HashSet<GameObject>();
+    private bool isElevatorActivated = false;
+    private Coroutine elevatorRoutine;
+    private Transform selfTransform;
 
-    // Registra a entrada do jogador e inicia a subida quando os 2 players estiverem no elevador
+    void Awake()
+    {
+        selfTransform = transform;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
         if (isElevatorActivated) return;
 
-        PlayerController3D player = other.GetComponent<PlayerController3D>();
-        if (player != null)
+        if (other.TryGetComponent(out PlayerController3D player))
         {
             playersInElevator.Add(player.gameObject);
 
-            if (playersInElevator.Count >= 2)
+            if (playersInElevator.Count >= 2 && elevatorRoutine == null)
             {
-                StartCoroutine(StartElevatorSequence());
+                elevatorRoutine = StartCoroutine(StartElevatorSequence());
             }
         }
     }
 
-    // Remove o jogador da contagem caso ele saia antes do elevador ativar
     private void OnTriggerExit(Collider other)
     {
         if (isElevatorActivated) return;
 
-        PlayerController3D player = other.GetComponent<PlayerController3D>();
-        if (player != null)
+        if (other.TryGetComponent(out PlayerController3D player))
         {
             playersInElevator.Remove(player.gameObject);
         }
     }
 
-    // Executa bônus, oculta os jogadores, toca os áudios do elevador, sobe e carrega a próxima fase
     private IEnumerator StartElevatorSequence()
     {
         isElevatorActivated = true;
 
-        // Toca o efeito sonoro do elevador subindo e troca para a música de elevador
-        if (AudioManager.instancia != null)
+        AudioManager audio = AudioManager.instancia;
+        if (audio != null)
         {
-            AudioManager.instancia.PlaySFX(AudioManager.instancia.elevadorSubindo);
-            AudioManager.instancia.PlayMusic(AudioManager.instancia.musicaElevador);
+            if (audio.elevadorSubindo != null)
+            {
+                audio.PlaySFX(audio.elevadorSubindo);
+            }
+            if (audio.musicaElevador != null)
+            {
+                audio.PlayMusic(audio.musicaElevador);
+            }
         }
 
-        // Calcula e adiciona o bônus de tempo antes de encerrar a fase
-        if (ScoreManager.Instance != null)
+        ScoreManager score = ScoreManager.Instance;
+        if (score != null)
         {
-            ScoreManager.Instance.CalculateAndAddSpeedBonus();
+            score.CalculateAndAddSpeedBonus();
         }
 
-        // Esconde os renderers e trava a física de ambos os jogadores durante a subida
         foreach (GameObject playerObj in playersInElevator)
         {
+            if (playerObj == null) continue;
+
             Renderer[] renderers = playerObj.GetComponentsInChildren<Renderer>();
-            foreach (Renderer r in renderers)
+            for (int i = 0; i < renderers.Length; i++)
             {
-                r.enabled = false;
+                if (renderers[i] != null)
+                {
+                    renderers[i].enabled = false;
+                }
             }
 
-            Rigidbody rb = playerObj.GetComponent<Rigidbody>();
-            if (rb != null)
+            if (playerObj.TryGetComponent(out Rigidbody rb))
             {
                 rb.isKinematic = true;
             }
         }
 
-        // Move o elevador para cima durante riseDuration segundos
         float timer = 0f;
-        Transform targetTransform = elevatorPlatform != null ? elevatorPlatform : transform;
+        Transform targetTransform = elevatorPlatform != null ? elevatorPlatform : selfTransform;
+        float duration = Mathf.Max(0f, riseDuration);
 
-        while (timer < riseDuration)
+        while (timer < duration)
         {
-            targetTransform.Translate(Vector3.up * riseSpeed * Time.deltaTime, Space.World);
+            targetTransform.Translate(Vector3.up * (riseSpeed * Time.deltaTime), Space.World);
             timer += Time.deltaTime;
             yield return null;
         }
 
-        // Reseta o cronômetro da fase e carrega a próxima cena configurada no Build Settings
-        if (ScoreManager.Instance != null)
+        if (score != null)
         {
-            ScoreManager.Instance.ResetLevelTimer();
+            score.ResetLevelTimer();
         }
 
         int nextSceneIndex = SceneManager.GetActiveScene().buildIndex + 1;
-
         if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
         {
             SceneManager.LoadScene(nextSceneIndex);
@@ -103,6 +112,17 @@ public class LevelExitElevator : MonoBehaviour
         else
         {
             Debug.Log("Esta é a última fase! Não há mais cenas no Build Settings.");
+        }
+
+        elevatorRoutine = null;
+    }
+
+    void OnDisable()
+    {
+        if (elevatorRoutine != null)
+        {
+            StopCoroutine(elevatorRoutine);
+            elevatorRoutine = null;
         }
     }
 }

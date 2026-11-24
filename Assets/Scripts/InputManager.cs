@@ -1,10 +1,19 @@
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
+// Centraliza a leitura de entradas via Input System e alterna entre os mapas Player e UI
 public class InputManager : MonoBehaviour
 {
     public static InputManager Instance; // Singleton simples
+
     private InputSystem_Actions inputActions;
+    private InputSystem_Actions.PlayerActions playerActions;
+    private InputAction moveAction;
+    private InputAction jumpAction;
+    private InputAction sprintAction;
+    private InputAction interactAction;
+
     private CinemachineOrbitalFollow cinemachineOrbitalFollow;
 
     public Vector2 Move { get; private set; }
@@ -26,42 +35,88 @@ public class InputManager : MonoBehaviour
         }
 
         inputActions = new InputSystem_Actions();
+        playerActions = inputActions.Player;
+        moveAction = playerActions.Move;
+        jumpAction = playerActions.Jump;
+        sprintAction = playerActions.Sprint;
+        interactAction = playerActions.Interact;
+
         cinemachineOrbitalFollow = FindAnyObjectByType<CinemachineOrbitalFollow>();
     }
 
     private void OnEnable()
     {
-        if (inputActions != null) inputActions.Enable();
+        inputActions?.Enable();
     }
 
     private void OnDisable()
     {
-        if (inputActions != null) inputActions.Disable();
+        inputActions?.Disable();
+        ClearPlayerInputs();
+    }
+
+    private void ClearPlayerInputs()
+    {
+        Move = Vector2.zero;
+        Jump = false;
+        Sprint = false;
+        Interact = false;
     }
 
     public void SwitchToPlayer()
     {
+        if (inputActions == null) return;
+
         inputActions.UI.Disable();
-        inputActions.Player.Enable();
+        playerActions.Enable();
         Cursor.lockState = CursorLockMode.Locked;
-        if (cinemachineOrbitalFollow != null) cinemachineOrbitalFollow.enabled = true;
+
+        if (cinemachineOrbitalFollow != null)
+        {
+            cinemachineOrbitalFollow.enabled = true;
+        }
     }
 
     public void SwitchToUI()
     {
-        inputActions.Player.Disable();
+        if (inputActions == null) return;
+
+        playerActions.Disable();
         inputActions.UI.Enable();
+        ClearPlayerInputs();
         Cursor.lockState = CursorLockMode.None;
-        if (cinemachineOrbitalFollow != null) cinemachineOrbitalFollow.enabled = false;
+
+        if (cinemachineOrbitalFollow != null)
+        {
+            cinemachineOrbitalFollow.enabled = false;
+        }
     }
 
     private void Update()
     {
-        if (inputActions == null) return;
+        if (inputActions == null || !playerActions.enabled)
+        {
+            return;
+        }
 
-        Move = inputActions.Player.Move.ReadValue<Vector2>();
-        Jump = inputActions.Player.Jump.WasPressedThisFrame();
-        Sprint = inputActions.Player.Sprint.IsPressed();
-        Interact = inputActions.Player.Interact.WasPressedThisFrame();
+        Move = moveAction.ReadValue<Vector2>();
+        Jump = jumpAction.WasPressedThisFrame();
+        Sprint = sprintAction.IsPressed();
+        Interact = interactAction.WasPressedThisFrame();
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+
+        if (inputActions != null)
+        {
+            inputActions.Disable();
+            inputActions.Dispose();
+            inputActions = null;
+        }
     }
 }

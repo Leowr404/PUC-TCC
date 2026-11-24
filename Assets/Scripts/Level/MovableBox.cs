@@ -9,34 +9,37 @@ public class MovableBox : MonoBehaviour
 
     private Rigidbody rb;
     private Collider boxCollider;
+    private Transform selfTransform;
     private Transform attachedTransform;
     private bool isAttached = false;
     private float fixedZPosition;
 
+    private const RigidbodyConstraints FrozenConstraints =
+        RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotation;
+
     void Start()
     {
+        selfTransform = transform;
         rb = GetComponent<Rigidbody>();
         boxCollider = GetComponent<Collider>();
 
-        // Salva a posicao Z inicial para travar a caixa no plano 2.5D
-        fixedZPosition = transform.position.z;
+        fixedZPosition = selfTransform.position.z;
 
         if (rb != null)
         {
             rb.mass = defaultMass;
             rb.isKinematic = false;
-            rb.constraints = RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotation;
+            rb.constraints = FrozenConstraints;
         }
     }
 
     void LateUpdate()
     {
-        // Acompanha a posicao da ferramenta do jogador durante o transporte
         if (isAttached && attachedTransform != null)
         {
             Vector3 targetPos = attachedTransform.position + (attachedTransform.forward * holdOffset);
             targetPos.z = fixedZPosition;
-            transform.position = targetPos;
+            selfTransform.position = targetPos;
         }
     }
 
@@ -50,15 +53,18 @@ public class MovableBox : MonoBehaviour
 
         if (!wasAttached)
         {
-            AudioManager.instancia?.PlaySFX(AudioManager.instancia.empurrar);
+            AudioManager audio = AudioManager.instancia;
+            if (audio != null && audio.empurrar != null)
+            {
+                audio.PlaySFX(audio.empurrar);
+            }
         }
 
         if (rb != null)
         {
-            rb.isKinematic = true; // Trava forcas fisicas para o jogador carregar sem peso
+            rb.isKinematic = true;
         }
 
-        // Virar Trigger impede que a caixa empurre o jogador enquanto e carregada
         if (boxCollider != null)
         {
             boxCollider.isTrigger = true;
@@ -71,7 +77,6 @@ public class MovableBox : MonoBehaviour
         isAttached = false;
         attachedTransform = null;
 
-        // Restaura a colidao solida da caixa
         if (boxCollider != null)
         {
             boxCollider.isTrigger = false;
@@ -79,9 +84,9 @@ public class MovableBox : MonoBehaviour
 
         if (rb != null)
         {
-            rb.isKinematic = false; // Ativa a fisica normal
-            rb.mass = defaultMass;  // Restaura a massa pesada
-            rb.constraints = RigidbodyConstraints.FreezePositionZ | RigidbodyConstraints.FreezeRotation;
+            rb.isKinematic = false;
+            rb.mass = defaultMass;
+            rb.constraints = FrozenConstraints;
         }
     }
 }

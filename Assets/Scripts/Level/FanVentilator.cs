@@ -1,6 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
+// Controla o ventilador que sopra inimigos e empurra jogadores quando ativo
 public class FanVentilator : MonoBehaviour
 {
     [Header("Configuracoes do Vento")]
@@ -10,7 +11,7 @@ public class FanVentilator : MonoBehaviour
     public AudioSource windAudioSource;     // Som do vento soprando
 
     [Header("Rotacao da Helice")]
-    public Transform propellerMesh;         // O objeto visual da hélice que vai rodar (se for este próprio objeto, deixe vazio)
+    public Transform propellerMesh;         // Objeto visual da hélice que vai rodar (se vazio, usa este objeto)
     public float rotationSpeed = 720f;      // Velocidade de rotação em graus por segundo
 
     [Header("Dano ao Jogador")]
@@ -18,10 +19,18 @@ public class FanVentilator : MonoBehaviour
 
     private bool isActive = false;
     private Collider windTriggerCollider;
+    private Transform selfTransform;
+    private Transform propellerTransform;
+    private Coroutine activeRoutine;
+    private WaitForSeconds cachedDurationWait;
+    private float cachedDurationValue = -1f;
 
     void Start()
     {
+        selfTransform = transform;
+        propellerTransform = propellerMesh != null ? propellerMesh : selfTransform;
         windTriggerCollider = GetComponent<Collider>();
+
         if (windTriggerCollider != null)
         {
             windTriggerCollider.isTrigger = true;
@@ -29,7 +38,7 @@ public class FanVentilator : MonoBehaviour
         }
 
         isActive = alwaysOn;
-        if (alwaysOn && windAudioSource != null)
+        if (alwaysOn && windAudioSource != null && !windAudioSource.isPlaying)
         {
             windAudioSource.Play();
         }
@@ -37,36 +46,55 @@ public class FanVentilator : MonoBehaviour
 
     void Update()
     {
-        // Se o ventilador estiver ligado, faz a hélice girar no eixo verde (Vector3.up)
+        // Gira a hélice apenas quando o ventilador está ligado
         if (isActive)
         {
-            Transform targetRot = propellerMesh != null ? propellerMesh : transform;
-            targetRot.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
+            propellerTransform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
         }
     }
 
-    // Chamado pelo botão para ligar o ventilador por 2 segundos
+    // Chamado pelo botão para ligar o ventilador temporariamente
     public void ActivateFan()
     {
         if (alwaysOn || isActive) return;
-        StartCoroutine(FanRoutine());
+
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+        }
+        activeRoutine = StartCoroutine(FanRoutine());
+    }
+
+    private WaitForSeconds GetDurationWait()
+    {
+        float duration = Mathf.Max(0f, activeDuration);
+        if (cachedDurationWait == null || !Mathf.Approximately(cachedDurationValue, duration))
+        {
+            cachedDurationValue = duration;
+            cachedDurationWait = new WaitForSeconds(duration);
+        }
+        return cachedDurationWait;
     }
 
     IEnumerator FanRoutine()
     {
         isActive = true;
         if (windTriggerCollider != null) windTriggerCollider.enabled = true;
-        if (windAudioSource != null) windAudioSource.Play();
+        if (windAudioSource != null && !windAudioSource.isPlaying) windAudioSource.Play();
 
-        // Fica ligado pelo tempo estipulado
-        yield return new WaitForSeconds(activeDuration);
+        if (activeDuration > 0f)
+        {
+            yield return GetDurationWait();
+        }
 
         if (!alwaysOn)
         {
             isActive = false;
             if (windTriggerCollider != null) windTriggerCollider.enabled = false;
-            if (windAudioSource != null) windAudioSource.Stop();
+            if (windAudioSource != null && windAudioSource.isPlaying) windAudioSource.Stop();
         }
+
+        activeRoutine = null;
     }
 
     private void OnTriggerStay(Collider other)
@@ -74,20 +102,26 @@ public class FanVentilator : MonoBehaviour
         if (!isActive) return;
 
         // 1. Se encostar no Inimigo
-        PatrolEnemy enemy = other.GetComponent<PatrolEnemy>();
-        if (enemy != null)
+        if (other.TryGetComponent(out PatrolEnemy enemy))
         {
-            Vector3 blowDirection = transform.up;
-            enemy.GetBlownAway(blowDirection * windForce);
+            enemy.GetBlownAway(selfTransform.up * windForce);
             return;
         }
 
         // 2. Se encostar no Jogador (aplica apenas o knockback sem perder a ferramenta)
-        PlayerController3D player = other.GetComponent<PlayerController3D>();
-        if (player != null)
+        if (other.TryGetComponent(out PlayerController3D player))
         {
-            Vector3 pushDirection = transform.up + Vector3.up * 0.2f;
+            Vector3 pushDirection = selfTransform.up + Vector3.up * 0.2f;
             player.TakeWindKnockback(pushDirection * playerKnockbackForce, 0.3f);
+        }
+    }
+
+    void OnDisable()
+    {
+        if (activeRoutine != null)
+        {
+            StopCoroutine(activeRoutine);
+            activeRoutine = null;
         }
     }
 }

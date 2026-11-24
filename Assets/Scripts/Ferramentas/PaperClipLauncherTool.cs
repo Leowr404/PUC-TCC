@@ -9,6 +9,12 @@ public class PaperClipLauncherTool : BaseTool
     public float fireRate = 0.3f;   // Cadência de tiro (ajuste para ser mais rápido ou lento)
 
     private float nextFireTime = 0f;
+    private Transform selfTransform;
+
+    void Awake()
+    {
+        selfTransform = transform;
+    }
 
     public override void OnActionDown(PlayerController3D player)
     {
@@ -21,10 +27,15 @@ public class PaperClipLauncherTool : BaseTool
 
     void Shoot()
     {
-        if (clipPrefab != null && firePoint != null)
+        Transform spawn = firePoint != null ? firePoint : selfTransform;
+        if (clipPrefab == null || spawn == null) return;
+
+        Instantiate(clipPrefab, spawn.position, spawn.rotation);
+
+        AudioManager audio = AudioManager.instancia;
+        if (audio != null && audio.atirarGrampo != null)
         {
-            Instantiate(clipPrefab, firePoint.position, firePoint.rotation);
-            AudioManager.instancia?.PlaySFX(AudioManager.instancia.atirarGrampo);
+            audio.PlaySFX(audio.atirarGrampo);
         }
     }
 }

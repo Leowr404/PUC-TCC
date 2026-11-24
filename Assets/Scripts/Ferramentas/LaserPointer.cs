@@ -5,7 +5,7 @@ public class LaserPointer : BaseTool
     [Header("Configuracoes do Laser")]
     public Transform firePoint;             // Ponta da caneta laser
     public LineRenderer lineRenderer;       // Componente LineRenderer
-    public float maxDistance = 30f;           // Alcance maximo do raio
+    public float maxDistance = 30f;         // Alcance maximo do raio
     public float rotationSpeed = 60f;       // Velocidade de ajuste do angulo
     public float minAngle = -45f;           // Angulo maximo para baixo
     public float maxAngle = 45f;            // Angulo maximo para cima
@@ -20,6 +20,17 @@ public class LaserPointer : BaseTool
     public bool isAiming = false;
     private float currentLaserAngle = 0f;
     private PlayerController3D ownerPlayer;
+    private Transform fireTransform;
+
+    private KeyCode keyLeft, keyRight, keyUp, keyDown;
+
+    private static readonly RaycastHit[] raycastHitBuffer = new RaycastHit[1];
+    private static readonly Collider[] enemyOverlapBuffer = new Collider[12];
+
+    void Awake()
+    {
+        fireTransform = firePoint != null ? firePoint : transform;
+    }
 
     void Start()
     {
@@ -33,9 +44,28 @@ public class LaserPointer : BaseTool
 
     public bool IsLockingMovement => isAiming;
 
+    private void CachePlayerKeys(PlayerController3D player)
+    {
+        if (player != null && player.playerIndex == PlayerController3D.PlayerIndex.Player2)
+        {
+            keyLeft = KeyCode.LeftArrow;
+            keyRight = KeyCode.RightArrow;
+            keyUp = KeyCode.UpArrow;
+            keyDown = KeyCode.DownArrow;
+        }
+        else
+        {
+            keyLeft = KeyCode.A;
+            keyRight = KeyCode.D;
+            keyUp = KeyCode.W;
+            keyDown = KeyCode.S;
+        }
+    }
+
     public override void OnActionDown(PlayerController3D player)
     {
         ownerPlayer = player;
+        CachePlayerKeys(player);
 
         if (!isAiming)
         {
@@ -50,25 +80,21 @@ public class LaserPointer : BaseTool
         if (!isAiming || ownerPlayer == null) return;
 
         // 1. Cancela o modo de mira se o jogador pressionar para andar para os lados
-        if (Input.GetKey(ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.A : KeyCode.LeftArrow) ||
-            Input.GetKey(ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.D : KeyCode.RightArrow))
+        if (Input.GetKey(keyLeft) || Input.GetKey(keyRight))
         {
             ExitAim();
             return;
         }
 
-        // 2. Ajusta angulo do laser usando as teclas de Pulo (sobe) e Interagir (desce) do respectivo jogador
-        KeyCode keyUp = ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.W : KeyCode.UpArrow;
-        KeyCode keyDown = ownerPlayer.playerIndex == PlayerController3D.PlayerIndex.Player1 ? KeyCode.S : KeyCode.DownArrow;
-
+        // 2. Ajusta angulo do laser usando as teclas de cima/baixo do respectivo jogador
+        float deltaAngle = rotationSpeed * Time.deltaTime;
         if (Input.GetKey(keyUp))
         {
-            currentLaserAngle += rotationSpeed * Time.deltaTime;
+            currentLaserAngle += deltaAngle;
         }
-
         if (Input.GetKey(keyDown))
         {
-            currentLaserAngle -= rotationSpeed * Time.deltaTime;
+            currentLaserAngle -= deltaAngle;
         }
 
         currentLaserAngle = Mathf.Clamp(currentLaserAngle, minAngle, maxAngle);
@@ -90,37 +116,37 @@ public class LaserPointer : BaseTool
 
     void DrawLaser()
     {
-        if (firePoint == null || lineRenderer == null) return;
+        Transform origin = firePoint != null ? firePoint : fireTransform;
+        if (origin == null || lineRenderer == null) return;
 
-        Vector3 aimDirection = Quaternion.AngleAxis(-currentLaserAngle, firePoint.right) * firePoint.forward;
+        Vector3 aimDirection = Quaternion.AngleAxis(-currentLaserAngle, origin.right) * origin.forward;
 
-        RaycastHit hit;
-        Vector3 startPos = firePoint.position;
+        Vector3 startPos = origin.position;
         Vector3 endPos = startPos + aimDirection * maxDistance;
 
-        if (Physics.Raycast(startPos, aimDirection, out hit, maxDistance, hitLayers))
+        int hitCount = Physics.RaycastNonAlloc(startPos, aimDirection, raycastHitBuffer, maxDistance, hitLayers, QueryTriggerInteraction.Collide);
+        if (hitCount > 0)
         {
-            endPos = hit.point; // PONTA DO LASER onde houve o impacto
+            RaycastHit hit = raycastHitBuffer[0];
+            endPos = hit.point;
 
-            // --- ATIVA플O DO BOTAO DE LASER ---
-            LaserButton laserBtn = hit.collider.GetComponent<LaserButton>();
-            if (laserBtn != null)
+            Collider hitCol = hit.collider;
+            if (hitCol != null)
             {
-                laserBtn.ActivateByLaser();
-            }
+                if (hitCol.TryGetComponent(out LaserButton laserBtn))
+                {
+                    laserBtn.ActivateByLaser();
+                }
 
-            // --- ATIVA플O DO BOTAO DE CORES DO PUZZLE ---
-            ColorButtonController colorBtn = hit.collider.GetComponent<ColorButtonController>();
-            if (colorBtn != null)
-            {
-                colorBtn.ActivateByLaser();
-            }
+                if (hitCol.TryGetComponent(out ColorButtonController colorBtn))
+                {
+                    colorBtn.ActivateByLaser();
+                }
 
-            // --- NOVO: DETEC플O DO PONTO FRACO DA IMPRESSORA (BOSS) ---
-            PrinterWeakPoint weakPoint = hit.collider.GetComponent<PrinterWeakPoint>();
-            if (weakPoint != null)
-            {
-                weakPoint.HitByLaser();
+                if (hitCol.TryGetComponent(out PrinterWeakPoint weakPoint))
+                {
+                    weakPoint.HitByLaser();
+                }
             }
         }
 
@@ -128,13 +154,12 @@ public class LaserPointer : BaseTool
         lineRenderer.SetPosition(1, endPos);
 
         // --- DETEC플O DE INIMIGOS NA PONTA DO LASER ---
-        Collider[] hitEnemies = Physics.OverlapSphere(endPos, attractionRadius, enemyLayer);
-        foreach (Collider col in hitEnemies)
+        int enemyCount = Physics.OverlapSphereNonAlloc(endPos, attractionRadius, enemyOverlapBuffer, enemyLayer, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < enemyCount; i++)
         {
-            PatrolEnemy enemy = (PatrolEnemy)col.GetComponent(typeof(PatrolEnemy));
-            if (enemy != null)
+            Collider col = enemyOverlapBuffer[i];
+            if (col != null && col.TryGetComponent(out PatrolEnemy enemy))
             {
-                // Envia a coordenada exata da ponta do laser para o inimigo
                 enemy.SetLaserTarget(endPos);
             }
         }
@@ -147,10 +172,11 @@ public class LaserPointer : BaseTool
 
     private void OnDrawGizmosSelected()
     {
-        if (firePoint != null)
+        Transform origin = firePoint != null ? firePoint : transform;
+        if (origin != null)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(firePoint.position, attractionRadius);
+            Gizmos.DrawWireSphere(origin.position, attractionRadius);
         }
     }
 }

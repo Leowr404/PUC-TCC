@@ -15,7 +15,7 @@ public class AudioManager : MonoBehaviour
     [Header("Ajuste de Volume dos Efeitos")]
     [Tooltip("Multiplica o volume dos efeitos (ex: 0.25 = bem mais baixo, 0.5 = metade).")]
     [Range(0f, 1f)]
-    [SerializeField] float sfxVolumeMultiplier = 0.15f; // Deixa os efeitos bem mais baixos sem alterar o mixer na mão
+    [SerializeField] float sfxVolumeMultiplier = 0.15f;
 
     public const string SFXVolumeKey = "SFXVolume";
     public const string MusicVolumeKey = "MusicVolume";
@@ -23,15 +23,7 @@ public class AudioManager : MonoBehaviour
     [SerializeField] string menuSceneName = "Menu";
 
     [Header("Faixas De Audios")]
-    public AudioClip purchase;
-    public AudioClip rewardMoney;
-    public AudioClip HeavyHit;
-    public AudioClip Scream;
-    public AudioClip Coletavel;
-    public AudioClip Select;
     public AudioClip Hit;
-    public AudioClip Danger;
-    public AudioClip Explosion;
     public AudioClip BossDeath;
     public AudioClip elevadorSubindo;
 
@@ -58,7 +50,6 @@ public class AudioManager : MonoBehaviour
 
     void Awake()
     {
-        // Garante apenas uma instância global do AudioManager
         if (instancia != null && instancia != this)
         {
             Destroy(gameObject);
@@ -66,7 +57,6 @@ public class AudioManager : MonoBehaviour
         }
         instancia = this;
 
-        // Mantém o AudioManager vivo entre cenas se estiver em um GameObject próprio
         if (GetComponents<MonoBehaviour>().Length == 1)
         {
             transform.SetParent(null);
@@ -77,15 +67,16 @@ public class AudioManager : MonoBehaviour
             Debug.LogWarning("AudioManager: coloque este componente num GameObject só dele para a música não cortar entre cenas.", this);
         }
 
-        // Busca o mixer e os grupos de música e efeitos
         var mixer = Resources.Load<AudioMixer>("MixerPrincipal");
         var grupoMusica = Grupo(mixer, "Musica");
         var grupoEfeitos = Grupo(mixer, "Efeitos");
 
-        // Prepara as AudioSources e aplica o multiplicador de redução nos efeitos
         musicSource = Preparar(musicSource, "Musica", grupoMusica);
         sfxSource = Preparar(sfxSource, "SFX", grupoEfeitos);
-        sfxSource.ignoreListenerPause = true;
+        if (sfxSource != null)
+        {
+            sfxSource.ignoreListenerPause = true;
+        }
         loopingSfxSource = Preparar(loopingSfxSource, "SFX Loop", grupoEfeitos);
 
         AplicarMultiplicadorSFX();
@@ -96,7 +87,6 @@ public class AudioManager : MonoBehaviour
 
     void Start()
     {
-        // Aplica as configurações salvas e reaplica a redução dos efeitos para não voltar alto ao iniciar
         Configuracoes.AplicarAudio();
         AplicarMultiplicadorSFX();
         OnSceneLoaded(SceneManager.GetActiveScene(), LoadSceneMode.Single);
@@ -104,11 +94,9 @@ public class AudioManager : MonoBehaviour
 
     void OnValidate()
     {
-        // Atualiza em tempo real no Editor quando você mexer no slider sfxVolumeMultiplier
         AplicarMultiplicadorSFX();
     }
 
-    // Aplica o multiplicador de redução nas fontes de SFX
     public void AplicarMultiplicadorSFX()
     {
         if (sfxSource != null) sfxSource.volume = sfxVolumeMultiplier;
@@ -119,7 +107,7 @@ public class AudioManager : MonoBehaviour
     {
         if (mixer == null) return null;
         var grupos = mixer.FindMatchingGroups(nome);
-        if (grupos.Length == 0)
+        if (grupos == null || grupos.Length == 0)
         {
             Debug.LogWarning("AudioManager: grupo \"" + nome + "\" não encontrado no MixerPrincipal.");
             return null;
@@ -141,7 +129,6 @@ public class AudioManager : MonoBehaviour
         return fonte;
     }
 
-    // Retorna o volume salvo já aplicando a redução nos efeitos (usado também por fontes locais do boss)
     public float GetSavedVolume(string key) =>
         key == MusicVolumeKey ? Configuracoes.VolumeMusica : Configuracoes.VolumeEfeitos * sfxVolumeMultiplier;
 
@@ -177,16 +164,18 @@ public class AudioManager : MonoBehaviour
     {
         if (clip == null) return;
 
-        AplicarMultiplicadorSFX();
-
         if (loop)
         {
+            if (loopingSfxSource == null) return;
+            loopingSfxSource.volume = sfxVolumeMultiplier;
             loopingSfxSource.clip = clip;
             loopingSfxSource.loop = true;
             loopingSfxSource.Play();
         }
         else
         {
+            if (sfxSource == null) return;
+            sfxSource.volume = sfxVolumeMultiplier;
             sfxSource.PlayOneShot(clip);
         }
     }
@@ -196,7 +185,16 @@ public class AudioManager : MonoBehaviour
 
     public void StopLoopingSFX()
     {
+        if (loopingSfxSource == null) return;
         loopingSfxSource.Stop();
         loopingSfxSource.loop = false;
+    }
+
+    void OnDestroy()
+    {
+        if (instancia == this)
+        {
+            instancia = null;
+        }
     }
 }

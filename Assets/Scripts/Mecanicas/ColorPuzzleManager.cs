@@ -19,6 +19,8 @@ public class ColorPuzzleManager : MonoBehaviour
     private bool hasStartedPuzzle = false;
     private bool hasLaserBeenPressed = false;
 
+    private static readonly WaitForSeconds sequenceDisplayWait = new WaitForSeconds(2f);
+
     void Start()
     {
         for (int i = 0; i < playerSequence.Length; i++)
@@ -61,18 +63,25 @@ public class ColorPuzzleManager : MonoBehaviour
         }
 
         // 2. Mostra as cores nos botões da parede
-        for (int i = 0; i < wallButtons.Length; i++)
+        int buttonCount = wallButtons != null ? Mathf.Min(3, wallButtons.Length) : 0;
+        for (int i = 0; i < buttonCount; i++)
         {
-            wallButtons[i].SetColor(correctSequence[i]);
+            if (wallButtons[i] != null)
+            {
+                wallButtons[i].SetColor(correctSequence[i]);
+            }
         }
 
         // 3. Fica aceso por 2 segundos
-        yield return new WaitForSeconds(2f);
+        yield return sequenceDisplayWait;
 
         // 4. Voltam a ser brancos para o jogador tentar adivinhar
-        for (int i = 0; i < wallButtons.Length; i++)
+        for (int i = 0; i < buttonCount; i++)
         {
-            wallButtons[i].SetColor(ColorOption.White);
+            if (wallButtons[i] != null)
+            {
+                wallButtons[i].SetColor(ColorOption.White);
+            }
         }
 
         isShowingSequence = false;
@@ -82,11 +91,15 @@ public class ColorPuzzleManager : MonoBehaviour
     public void CycleButtonColor(int buttonIndex)
     {
         if (isShowingSequence || puzzleSolved) return;
+        if (buttonIndex < 0 || buttonIndex >= 3) return;
 
         int nextColorIndex = ((int)playerSequence[buttonIndex] + 1) % 5;
         playerSequence[buttonIndex] = (ColorOption)nextColorIndex;
 
-        wallButtons[buttonIndex].SetColor(playerSequence[buttonIndex]);
+        if (wallButtons != null && buttonIndex < wallButtons.Length && wallButtons[buttonIndex] != null)
+        {
+            wallButtons[buttonIndex].SetColor(playerSequence[buttonIndex]);
+        }
 
         CheckCompletion();
     }
@@ -96,25 +109,19 @@ public class ColorPuzzleManager : MonoBehaviour
         // Só permite abrir a porta se o puzzle tiver sido iniciado E o laser tiver sido apertado ao menos 1 vez
         if (!hasStartedPuzzle || !hasLaserBeenPressed) return;
 
-        bool isCorrect = true;
         for (int i = 0; i < 3; i++)
         {
             if (playerSequence[i] != correctSequence[i])
             {
-                isCorrect = false;
-                break;
+                return;
             }
         }
 
-        if (isCorrect)
-        {
-            puzzleSolved = true;
-            Debug.Log("Puzzle resolvido! A porta sumiu.");
+        puzzleSolved = true;
 
-            if (targetDoor != null)
-            {
-                targetDoor.SetActive(false);
-            }
+        if (targetDoor != null)
+        {
+            targetDoor.SetActive(false);
         }
     }
 }

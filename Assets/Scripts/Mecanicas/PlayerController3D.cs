@@ -7,29 +7,32 @@ public class PlayerController3D : MonoBehaviour
     public enum PlayerIndex { Player1, Player2 }
 
     [Header("Identificacao do Jogador")]
-    public PlayerIndex playerIndex = PlayerIndex.Player1; // Define controles e identidade do jogador
+    public PlayerIndex playerIndex = PlayerIndex.Player1;
 
     [Header("Configuracoes de Movimento")]
-    public float moveSpeed = 8f;   // Velocidade horizontal padrão
-    public float crouchSpeed = 4f; // Velocidade horizontal enquanto agachado
-    public float jumpForce = 10f;  // Impulso vertical aplicado ao pular
+    public float moveSpeed = 8f;
+    public float crouchSpeed = 4f;
+    public float jumpForce = 10f;
 
     [Header("Configuracoes de Agachar")]
     [Range(0.2f, 0.9f)]
-    public float crouchHeightRatio = 0.5f; // Proporção da altura do CapsuleCollider ao agachar
-    public bool isCrouching = false;       // Estado atual de agachamento
+    public float crouchHeightRatio = 0.5f;
+    public bool isCrouching = false;
 
     [Header("Ajuste de Gravidade")]
-    public float fallMultiplier = 2.5f; // Multiplicador de gravidade na queda para deixar o salto mais firme
-    public float lowJumpMultiplier = 2f;  // Multiplicador ao soltar o botão de pulo cedo
+    public float fallMultiplier = 2.5f;
+    public float lowJumpMultiplier = 2f;
 
     [Header("Ponto de Encaixe da Ferramenta")]
-    public Transform toolHoldPoint; // Local onde a ferramenta equipada é instanciada
+    public Transform toolHoldPoint;
 
     private BaseTool currentTool;
+    private LaserPointer currentLaserTool;
     private GameObject currentToolPrefab;
+    private Transform selfTransform;
     private Rigidbody rb;
     private CapsuleCollider capsuleCollider;
+
     private bool isGrounded;
     private bool isAttachedToWall;
     private float horizontalInput;
@@ -47,8 +50,12 @@ public class PlayerController3D : MonoBehaviour
     private float targetYRotation = 90f;
     private KeyCode kLeft, kRight, kJump, kInteract, kCrouch;
 
+    private static readonly Quaternion rightFacing = Quaternion.Euler(0f, 90f, 0f);
+    private static readonly Quaternion leftFacing = Quaternion.Euler(0f, -90f, 0f);
+
     void Start()
     {
+        selfTransform = transform;
         rb = GetComponent<Rigidbody>();
         capsuleCollider = GetComponent<CapsuleCollider>();
 
@@ -59,10 +66,9 @@ public class PlayerController3D : MonoBehaviour
         }
 
         SetupKeyboardKeys();
-        targetYRotation = transform.eulerAngles.y;
+        targetYRotation = selfTransform.eulerAngles.y;
     }
 
-    // Configura as teclas padrão de teclado para Player 1 ou Player 2
     void SetupKeyboardKeys()
     {
         if (playerIndex == PlayerIndex.Player1)
@@ -83,6 +89,11 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
+    private bool IsLaserLockingMovement()
+    {
+        return currentLaserTool != null && currentLaserTool.IsLockingMovement;
+    }
+
     void Update()
     {
         if (isStunned)
@@ -91,13 +102,31 @@ public class PlayerController3D : MonoBehaviour
             return;
         }
 
-        ProcessKeyboardInput();
+        bool laserLock = IsLaserLockingMovement();
 
-        LaserPointer laserTool = currentTool as LaserPointer;
-        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
+        horizontalInput = 0f;
+        if (!laserLock)
+        {
+            if (Input.GetKey(kLeft)) horizontalInput -= 1f;
+            if (Input.GetKey(kRight)) horizontalInput += 1f;
 
-        // Trava deslocamento horizontal e agachamento enquanto o laser está bloqueando o movimento
-        if (isLaserActive)
+            if (Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
+            {
+                ExecuteJump();
+            }
+
+            if (Input.GetKeyDown(kCrouch) && !isAttachedToWall)
+            {
+                ToggleCrouch();
+            }
+        }
+
+        if (Input.GetKeyDown(kInteract))
+        {
+            ExecuteInteract();
+        }
+
+        if (laserLock)
         {
             horizontalInput = 0f;
             isBlockedByCamera = false;
@@ -110,24 +139,24 @@ public class PlayerController3D : MonoBehaviour
             return;
         }
 
-        if (horizontalInput != 0 && !isAttachedToWall)
+        if (horizontalInput != 0f && !isAttachedToWall)
         {
-            targetYRotation = horizontalInput > 0 ? 90f : -90f;
+            targetYRotation = horizontalInput > 0f ? 90f : -90f;
         }
 
         UpdateWalkSound();
     }
 
-    // Toca ou interrompe o som contínuo de passos conforme estado no chão e movimento efetivo
     private void UpdateWalkSound()
     {
         bool shouldWalk = isGrounded && !isAttachedToWall && !isBlockedByCamera && Mathf.Abs(horizontalInput) > 0.01f;
 
         if (shouldWalk && !isWalkingSoundPlaying)
         {
-            if (AudioManager.instancia != null && AudioManager.instancia.andar != null)
+            AudioManager audio = AudioManager.instancia;
+            if (audio != null && audio.andar != null)
             {
-                AudioManager.instancia.PlaySFX(AudioManager.instancia.andar, true);
+                audio.PlaySFX(audio.andar, true);
                 isWalkingSoundPlaying = true;
             }
         }
@@ -137,7 +166,6 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Para o áudio em loop de passos se estiver ativo
     private void StopWalkSound()
     {
         if (!isWalkingSoundPlaying) return;
@@ -146,33 +174,6 @@ public class PlayerController3D : MonoBehaviour
         isWalkingSoundPlaying = false;
     }
 
-    // Lê entradas de teclado para andar, pular, agachar e interagir
-    private void ProcessKeyboardInput()
-    {
-        horizontalInput = 0f;
-        if (Input.GetKey(kLeft)) horizontalInput -= 1f;
-        if (Input.GetKey(kRight)) horizontalInput += 1f;
-
-        LaserPointer laserTool = currentTool as LaserPointer;
-        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
-
-        if (!isLaserActive && Input.GetKeyDown(kJump) && (isGrounded || isAttachedToWall))
-        {
-            ExecuteJump();
-        }
-
-        if (!isLaserActive && Input.GetKeyDown(kCrouch) && !isAttachedToWall)
-        {
-            ToggleCrouch();
-        }
-
-        if (Input.GetKeyDown(kInteract))
-        {
-            ExecuteInteract();
-        }
-    }
-
-    // Aplica impulso vertical de pulo e reseta velocidade Y anterior
     private void ExecuteJump()
     {
         StopWalkSound();
@@ -182,14 +183,15 @@ public class PlayerController3D : MonoBehaviour
         SetAttachedToWall(false);
         isGrounded = false;
 
-        Vector3 velocity = rb.linearVelocity;
-        velocity.y = 0f;
-        rb.linearVelocity = velocity;
-
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        if (rb != null)
+        {
+            Vector3 vel = rb.linearVelocity;
+            vel.y = 0f;
+            rb.linearVelocity = vel;
+            rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
+        }
     }
 
-    // Interage com caixas próximas ou aciona a ferramenta equipada
     private void ExecuteInteract()
     {
         if (nearbyToolbox != null)
@@ -197,12 +199,12 @@ public class PlayerController3D : MonoBehaviour
             nearbyToolbox.Interact(this);
             return;
         }
-        else if (nearbyStorageBox != null)
+        if (nearbyStorageBox != null)
         {
             nearbyStorageBox.Interact(this);
             return;
         }
-        else if (nearbyConnectedBox != null)
+        if (nearbyConnectedBox != null)
         {
             nearbyConnectedBox.Interact(this);
             return;
@@ -214,25 +216,23 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Toca efeito sonoro de empurrar
     public void PlayPushSound()
     {
-        AudioManager.instancia?.PlaySFX(AudioManager.instancia.empurrar);
+        AudioManager audio = AudioManager.instancia;
+        if (audio != null && audio.empurrar != null)
+        {
+            audio.PlaySFX(audio.empurrar);
+        }
     }
 
-    // Callback do Player Input para pulo
     public void OnJump(InputValue value)
     {
-        LaserPointer laserTool = currentTool as LaserPointer;
-        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
-
-        if (!isLaserActive && value.isPressed && (isGrounded || isAttachedToWall))
+        if (!IsLaserLockingMovement() && value.isPressed && (isGrounded || isAttachedToWall))
         {
             ExecuteJump();
         }
     }
 
-    // Callback do Player Input para interação
     public void OnInteract(InputValue value)
     {
         if (value.isPressed)
@@ -241,24 +241,20 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Callback do Player Input para agachar
     public void OnSprint(InputValue value)
     {
-        LaserPointer laserTool = currentTool as LaserPointer;
-        bool isLaserActive = laserTool != null && laserTool.IsLockingMovement;
-
-        if (!isLaserActive && value.isPressed && !isAttachedToWall)
+        if (!IsLaserLockingMovement() && value.isPressed && !isAttachedToWall)
         {
             ToggleCrouch();
         }
     }
 
-    // Verifica contato com chão através de normais voltadas para cima
     private void OnCollisionStay(Collision collision)
     {
-        foreach (ContactPoint contact in collision.contacts)
+        ContactPoint[] contacts = collision.contacts;
+        for (int i = 0; i < contacts.Length; i++)
         {
-            if (contact.normal.y > 0.3f)
+            if (contacts[i].normal.y > 0.3f)
             {
                 isGrounded = true;
                 return;
@@ -271,21 +267,20 @@ public class PlayerController3D : MonoBehaviour
         isGrounded = false;
     }
 
-    // Aplica rotação, velocidade horizontal (com bloqueio na borda de afastamento da câmera) e gravidade customizada
     void FixedUpdate()
     {
-        if (isAttachedToWall) return;
+        if (isAttachedToWall || rb == null) return;
 
-        transform.rotation = Quaternion.Euler(0, targetYRotation, 0);
+        selfTransform.rotation = Mathf.Approximately(targetYRotation, 90f) ? rightFacing : leftFacing;
 
         float currentSpeed = isCrouching ? crouchSpeed : moveSpeed;
         float vx = horizontalInput * currentSpeed;
         isBlockedByCamera = false;
 
-        // Impede que o jogador ultrapasse o limite de afastamento horizontal em relação ao outro player
-        if (CoopCamera.instancia != null)
+        CoopCamera coopCam = CoopCamera.instancia;
+        if (coopCam != null)
         {
-            int blockedDir = CoopCamera.instancia.GetBlockedHorizontalDirection(transform);
+            int blockedDir = coopCam.GetBlockedHorizontalDirection(selfTransform);
             if ((blockedDir < 0 && vx < 0f) || (blockedDir > 0 && vx > 0f))
             {
                 vx = 0f;
@@ -293,19 +288,21 @@ public class PlayerController3D : MonoBehaviour
             }
         }
 
-        rb.linearVelocity = new Vector3(vx, rb.linearVelocity.y, rb.linearVelocity.z);
+        Vector3 vel = rb.linearVelocity;
+        vel.x = vx;
 
-        if (rb.linearVelocity.y < 0)
+        if (vel.y < 0f)
         {
-            rb.linearVelocity += Vector3.up * Physics.gravity.y * (fallMultiplier - 1) * Time.fixedDeltaTime;
+            vel.y += Physics.gravity.y * (fallMultiplier - 1f) * Time.fixedDeltaTime;
         }
-        else if (rb.linearVelocity.y > 0 && !Input.GetKey(kJump))
+        else if (vel.y > 0f && !Input.GetKey(kJump))
         {
-            rb.linearVelocity += Vector3.up * Physics.gravity.y * (lowJumpMultiplier - 1) * Time.fixedDeltaTime;
+            vel.y += Physics.gravity.y * (lowJumpMultiplier - 1f) * Time.fixedDeltaTime;
         }
+
+        rb.linearVelocity = vel;
     }
 
-    // Alterna entre altura normal e altura reduzida do collider ao agachar
     public void ToggleCrouch()
     {
         isCrouching = !isCrouching;
@@ -323,11 +320,13 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Prende ou solta o jogador de uma parede (modo cinemático quando preso)
     public void SetAttachedToWall(bool attach)
     {
         isAttachedToWall = attach;
-        rb.isKinematic = attach;
+        if (rb != null)
+        {
+            rb.isKinematic = attach;
+        }
 
         if (attach && isCrouching)
         {
@@ -335,7 +334,6 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    // Instancia e equipa uma ferramenta a partir de um prefab
     public void EquipToolPrefab(GameObject newToolPrefab)
     {
         if (currentTool != null)
@@ -345,7 +343,8 @@ public class PlayerController3D : MonoBehaviour
 
         currentToolPrefab = newToolPrefab;
         GameObject toolObj = Instantiate(newToolPrefab, toolHoldPoint.position, toolHoldPoint.rotation, toolHoldPoint);
-        currentTool = (BaseTool)toolObj.GetComponent(typeof(BaseTool));
+        currentTool = toolObj.GetComponent<BaseTool>();
+        currentLaserTool = currentTool as LaserPointer;
 
         if (ScoreManager.Instance != null)
         {
@@ -353,37 +352,22 @@ public class PlayerController3D : MonoBehaviour
         }
     }
 
-    public GameObject GetCurrentToolPrefab()
-    {
-        return currentToolPrefab;
-    }
+    public GameObject GetCurrentToolPrefab() => currentToolPrefab;
 
-    // Detecta aproximação de caixas interativas
     private void OnTriggerEnter(Collider other)
     {
-        Toolbox box = other.GetComponent<Toolbox>();
-        if (box != null) nearbyToolbox = box;
-
-        StorageToolbox storageBox = other.GetComponent<StorageToolbox>();
-        if (storageBox != null) nearbyStorageBox = storageBox;
-
-        ConnectedStorageBox connectedBox = other.GetComponent<ConnectedStorageBox>();
-        if (connectedBox != null) nearbyConnectedBox = connectedBox;
+        if (other.TryGetComponent(out Toolbox box)) nearbyToolbox = box;
+        if (other.TryGetComponent(out StorageToolbox storageBox)) nearbyStorageBox = storageBox;
+        if (other.TryGetComponent(out ConnectedStorageBox connectedBox)) nearbyConnectedBox = connectedBox;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        Toolbox box = other.GetComponent<Toolbox>();
-        if (box != null && nearbyToolbox == box) nearbyToolbox = null;
-
-        StorageToolbox storageBox = other.GetComponent<StorageToolbox>();
-        if (storageBox != null && nearbyStorageBox == storageBox) nearbyStorageBox = null;
-
-        ConnectedStorageBox connectedBox = other.GetComponent<ConnectedStorageBox>();
-        if (connectedBox != null && nearbyConnectedBox == connectedBox) nearbyConnectedBox = null;
+        if (other.TryGetComponent(out Toolbox box) && nearbyToolbox == box) nearbyToolbox = null;
+        if (other.TryGetComponent(out StorageToolbox storageBox) && nearbyStorageBox == storageBox) nearbyStorageBox = null;
+        if (other.TryGetComponent(out ConnectedStorageBox connectedBox) && nearbyConnectedBox == connectedBox) nearbyConnectedBox = null;
     }
 
-    // Aplica dano, knockback, feedback audiovisual e atordoamento temporário
     public void TakeDamage(Vector3 knockback, float duration)
     {
         if (isStunned) return;
@@ -395,17 +379,24 @@ public class PlayerController3D : MonoBehaviour
         DropCurrentTool();
 
         SetAttachedToWall(false);
-        rb.linearVelocity = Vector3.zero;
-        rb.AddForce(knockback, ForceMode.Impulse);
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.AddForce(knockback, ForceMode.Impulse);
+        }
 
-        AudioManager.instancia?.PlaySFX(AudioManager.instancia.Hit);
+        AudioManager audio = AudioManager.instancia;
+        if (audio != null && audio.Hit != null)
+        {
+            audio.PlaySFX(audio.Hit);
+        }
+
         Feedback.TremerCamera(0.2f, 0.25f);
         Feedback.Vibrar(this, 0.7f, 0.25f);
 
         StartCoroutine(StunRoutine(duration));
     }
 
-    // Aplica empurrão de vento sem tocar som de dano padrão
     public void TakeWindKnockback(Vector3 knockback, float duration)
     {
         if (isStunned) return;
@@ -415,26 +406,28 @@ public class PlayerController3D : MonoBehaviour
         if (isCrouching) ToggleCrouch();
 
         SetAttachedToWall(false);
-        rb.linearVelocity = Vector3.zero;
-        rb.AddForce(knockback, ForceMode.Impulse);
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
+            rb.AddForce(knockback, ForceMode.Impulse);
+        }
 
         Feedback.Vibrar(this, 0.3f, 0.15f);
 
         StartCoroutine(StunRoutine(duration));
     }
 
-    // Remove e limpa a ferramenta equipada atualmente
     public void DropCurrentTool()
     {
         if (currentTool != null)
         {
             Destroy(currentTool.gameObject);
             currentTool = null;
+            currentLaserTool = null;
             currentToolPrefab = null;
         }
     }
 
-    // Mantém o jogador atordoado pelo tempo especificado
     private System.Collections.IEnumerator StunRoutine(float duration)
     {
         isStunned = true;

@@ -14,69 +14,83 @@ public class PaperClipProjectile : MonoBehaviour
 
     private Rigidbody rb;
     private Collider clipCollider;
+    private Transform selfTransform;
     private bool isAttachedToWall = false;
+    private bool isDestroying = false;
 
-    private static PaperClipProjectile[] activeClips = new PaperClipProjectile[4];
+    private static readonly PaperClipProjectile[] activeClips = new PaperClipProjectile[4];
+    private static readonly RaycastHit[] sphereCastBuffer = new RaycastHit[1];
+
+    void Awake()
+    {
+        selfTransform = transform;
+        rb = GetComponent<Rigidbody>();
+        clipCollider = GetComponent<Collider>();
+    }
 
     void Start()
     {
-        rb = (Rigidbody)GetComponent(typeof(Rigidbody));
-        clipCollider = (Collider)GetComponent(typeof(Collider));
-
-        // Garante detecção contínua para projéteis rápidos não passarem direto
         if (rb != null)
         {
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            rb.linearVelocity = transform.forward * speed;
+            rb.linearVelocity = selfTransform.forward * speed;
         }
 
         RegisterClip(this);
 
-        Invoke(nameof(DestroySelf), lifeTimeInAir);
+        if (lifeTimeInAir > 0f)
+        {
+            Invoke(nameof(DestroySelf), lifeTimeInAir);
+        }
     }
 
     void FixedUpdate()
     {
-        if (isAttachedToWall) return;
+        if (isAttachedToWall || isDestroying) return;
 
-        // Deteção por SphereCast no FixedUpdate (sincronizado com a física da Unity)
         float stepDistance = speed * Time.fixedDeltaTime;
         float radius = clipCollider != null ? clipCollider.bounds.extents.x : 0.2f;
+        Vector3 pos = selfTransform.position;
+        Vector3 forward = selfTransform.forward;
 
-        // Aumentamos levemente a margem de segurança para garantir o hit à distância
-        if (Physics.SphereCast(transform.position, radius, transform.forward, out RaycastHit hit, stepDistance + 0.3f))
+        int hitCount = Physics.SphereCastNonAlloc(
+            pos,
+            radius,
+            forward,
+            sphereCastBuffer,
+            stepDistance + 0.3f,
+            ~0,
+            QueryTriggerInteraction.Collide
+        );
+
+        if (hitCount > 0)
         {
-            // --- NOVO: DETECÇÃO DA IMPRESSORA (BOSS) ---
-            PrinterBoss printer = hit.collider.GetComponent<PrinterBoss>();
-            if (printer != null)
+            RaycastHit hit = sphereCastBuffer[0];
+            Collider hitCol = hit.collider;
+            if (hitCol == null) return;
+
+            if (hitCol.TryGetComponent(out PrinterBoss printer))
             {
-                printer.OnHitByPaperClip(null); // Atinge o boss
+                printer.OnHitByPaperClip(null);
                 DestroySelf();
                 return;
             }
 
-            // --- DETECÇÃO DO BOTÃO X / PUZZLE ---
-            ColorPuzzleTrigger puzzleTrigger = hit.collider.GetComponent<ColorPuzzleTrigger>();
-            if (puzzleTrigger != null)
+            if (hitCol.TryGetComponent(out ColorPuzzleTrigger puzzleTrigger))
             {
                 puzzleTrigger.ActivateByLaser();
                 DestroySelf();
                 return;
             }
 
-            // Verifica se bateu numa parede (por Tag ou por Layer)
-            bool isWall = hit.collider.CompareTag(wallTag) || ((1 << hit.collider.gameObject.layer) & wallLayer) != 0;
-
-            if (isWall)
+            if (IsWallCollider(hitCol))
             {
-                transform.position = hit.point;
+                selfTransform.position = hit.point;
                 AttachToWall();
                 return;
             }
 
-            // Se for inimigo
-            PatrolEnemy enemy = (PatrolEnemy)hit.collider.GetComponent(typeof(PatrolEnemy));
-            if (enemy != null)
+            if (hitCol.TryGetComponent(out PatrolEnemy enemy))
             {
                 enemy.Freeze(freezeDuration);
                 DestroySelf();
@@ -84,11 +98,21 @@ public class PaperClipProjectile : MonoBehaviour
         }
     }
 
+    private bool IsWallCollider(Collider col)
+    {
+        if (col == null) return false;
+        if (!string.IsNullOrEmpty(wallTag) && col.CompareTag(wallTag)) return true;
+        return (wallLayer.value & (1 << col.gameObject.layer)) != 0;
+    }
+
     private static void RegisterClip(PaperClipProjectile newClip)
     {
-        if (activeClips[0] != null)
+        if (newClip == null) return;
+
+        PaperClipProjectile oldest = activeClips[0];
+        if (oldest != null && oldest != newClip)
         {
-            activeClips[0].DestroySelf();
+            oldest.DestroySelf();
         }
 
         for (int i = 0; i < activeClips.Length - 1; i++)
@@ -101,36 +125,30 @@ public class PaperClipProjectile : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (isAttachedToWall || other.CompareTag("Player")) return;
+        if (isAttachedToWall || isDestroying || other == null || other.CompareTag("Player")) return;
 
-        // --- NOVO: DETECÇÃO DA IMPRESSORA VIA TRIGGER ---
-        PrinterBoss printer = other.GetComponent<PrinterBoss>();
-        if (printer != null)
+        if (other.TryGetComponent(out PrinterBoss printer))
         {
             printer.OnHitByPaperClip(null);
             DestroySelf();
             return;
         }
 
-        // --- DETECÇÃO DO BOTÃO X VIA TRIGGER ---
-        ColorPuzzleTrigger puzzleTrigger = other.GetComponent<ColorPuzzleTrigger>();
-        if (puzzleTrigger != null)
+        if (other.TryGetComponent(out ColorPuzzleTrigger puzzleTrigger))
         {
             puzzleTrigger.ActivateByLaser();
             DestroySelf();
             return;
         }
 
-        PatrolEnemy enemy = (PatrolEnemy)other.GetComponent(typeof(PatrolEnemy));
-        if (enemy != null)
+        if (other.TryGetComponent(out PatrolEnemy enemy))
         {
             enemy.Freeze(freezeDuration);
             DestroySelf();
             return;
         }
 
-        bool isWall = other.CompareTag(wallTag) || ((1 << other.gameObject.layer) & wallLayer) != 0;
-        if (isWall)
+        if (IsWallCollider(other))
         {
             AttachToWall();
             return;
@@ -144,7 +162,7 @@ public class PaperClipProjectile : MonoBehaviour
 
     void AttachToWall()
     {
-        if (isAttachedToWall) return;
+        if (isAttachedToWall || isDestroying) return;
 
         isAttachedToWall = true;
         CancelInvoke(nameof(DestroySelf));
@@ -160,17 +178,25 @@ public class PaperClipProjectile : MonoBehaviour
             clipCollider.isTrigger = false;
         }
 
-        Invoke(nameof(DestroySelf), platformDuration);
+        if (platformDuration > 0f)
+        {
+            Invoke(nameof(DestroySelf), platformDuration);
+        }
     }
 
     public void DestroySelf()
     {
+        if (isDestroying) return;
+        isDestroying = true;
+
+        CancelInvoke(nameof(DestroySelf));
         RemoveFromRegister(this);
         Destroy(gameObject);
     }
 
     private void OnDestroy()
     {
+        CancelInvoke(nameof(DestroySelf));
         RemoveFromRegister(this);
     }
 

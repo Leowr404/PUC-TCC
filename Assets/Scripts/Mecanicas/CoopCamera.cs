@@ -4,11 +4,11 @@ using UnityEngine;
 // Controla a câmera em jogos coop local mantendo ambos os jogadores no enquadramento e aplicando tremor (shake)
 public class CoopCamera : MonoBehaviour
 {
-    public static CoopCamera instancia; 
+    public static CoopCamera instancia;
 
     [Header("Jogadores")]
-    public Transform player1; 
-    public Transform player2; 
+    public Transform player1;
+    public Transform player2;
 
     [Header("Limites do Zoom (FOV)")]
     public float minFOV = 40f; // Campo de visão mínimo (mais zoom quando estão próximos)
@@ -27,23 +27,31 @@ public class CoopCamera : MonoBehaviour
     public Vector3 offset = new Vector3(0f, 2f, -10f); // Deslocamento relativo ao ponto médio dos jogadores
 
     private Camera cam;
+    private Transform selfTransform;
     private Vector3 velocity;
 
     // Posição base calculada antes do shake para evitar conflito com o SmoothDamp
     private Vector3 basePosition;
     private Vector3 shakeOffset;
+    private Vector3 shakeStrengthVector;
     private Tween shakeTween;
     private float shakeForce;
 
     void Awake()
     {
+        if (instancia != null && instancia != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
         instancia = this;
+        selfTransform = transform;
     }
 
     void Start()
     {
         cam = GetComponent<Camera>();
-        basePosition = transform.position;
+        basePosition = selfTransform.position;
     }
 
     // Dispara tremor na câmera; um tremor mais forte substitui outro ativo mais fraco
@@ -54,11 +62,24 @@ public class CoopCamera : MonoBehaviour
         shakeTween?.Kill();
         shakeForce = force;
         shakeOffset = Vector3.zero;
-        shakeTween = DOTween.Shake(() => shakeOffset, x => shakeOffset = x, duration,
-                                   new Vector3(force, force, 0f), 20, 90f, true)
+        shakeStrengthVector.Set(force, force, 0f);
+
+        shakeTween = DOTween.Shake(
+                () => shakeOffset,
+                x => shakeOffset = x,
+                duration,
+                shakeStrengthVector,
+                20,
+                90f,
+                true
+            )
             .SetUpdate(true) // Permite tremer mesmo em timeScale reduzido/pausado
             .SetLink(gameObject)
-            .OnComplete(() => shakeOffset = Vector3.zero);
+            .OnComplete(() =>
+            {
+                shakeOffset = Vector3.zero;
+                shakeForce = 0f;
+            });
     }
 
     void LateUpdate()
@@ -66,40 +87,41 @@ public class CoopCamera : MonoBehaviour
         if (player1 == null || player2 == null)
             return;
 
-        MoveCamera();
-        ZoomCamera();
+        Vector3 p1Pos = player1.position;
+        Vector3 p2Pos = player2.position;
+
+        MoveCamera(p1Pos, p2Pos);
+        ZoomCamera(p1Pos, p2Pos);
         ApplyShake();
     }
 
     // Soma o offset do tremor sobre a posição base da câmera
     void ApplyShake()
     {
-        transform.position = basePosition + shakeOffset;
+        selfTransform.position = basePosition + shakeOffset;
     }
 
     // Move a câmera suavemente para o ponto médio entre os dois jogadores
-    void MoveCamera()
+    void MoveCamera(Vector3 p1Pos, Vector3 p2Pos)
     {
-        Vector3 centerPoint = GetCenterPoint();
+        Vector3 centerPoint = (p1Pos + p2Pos) * 0.5f;
         Vector3 targetPosition = centerPoint + offset;
         basePosition = Vector3.SmoothDamp(basePosition, targetPosition, ref velocity, smoothTime);
     }
 
     // Ajusta o FOV de acordo com a maior distância horizontal ou vertical entre os jogadores
-    void ZoomCamera()
+    void ZoomCamera(Vector3 p1Pos, Vector3 p2Pos)
     {
-        float distanceX = Mathf.Abs(player1.position.x - player2.position.x);
-        float distanceY = Mathf.Abs(player1.position.y - player2.position.y);
+        if (cam == null) return;
 
-        float currentDistance = Mathf.Max(distanceX, distanceY);
+        float distanceX = Mathf.Abs(p1Pos.x - p2Pos.x);
+        float distanceY = Mathf.Abs(p1Pos.y - p2Pos.y);
+        float currentDistance = distanceX > distanceY ? distanceX : distanceY;
 
         float t = Mathf.InverseLerp(minDistance, maxDistance, currentDistance);
         float targetFOV = Mathf.Lerp(minFOV, maxFOV, t);
 
-        if (cam != null)
-        {
-            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * 3f);
-        }
+        cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, Time.deltaTime * 3f);
     }
 
     // Retorna -1 se o player estiver bloqueado de ir para a esquerda,
@@ -111,17 +133,23 @@ public class CoopCamera : MonoBehaviour
         Transform other = player == player1 ? player2 : player1;
         float deltaX = player.position.x - other.position.x;
 
-        // Só bloqueia quando atinge ou ultrapassa a distância horizontal máxima permitida
         if (Mathf.Abs(deltaX) < maxHorizontalSeparation) return 0;
 
-        if (deltaX < 0f) return -1;
-
-        return 1;
+        return deltaX < 0f ? -1 : 1;
     }
 
-    // Calcula o ponto médio exato entre os dois jogadores
-    Vector3 GetCenterPoint()
+    void OnDisable()
     {
-        return (player1.position + player2.position) / 2f;
+        shakeTween?.Kill();
+        shakeOffset = Vector3.zero;
+        shakeForce = 0f;
+    }
+
+    void OnDestroy()
+    {
+        if (instancia == this)
+        {
+            instancia = null;
+        }
     }
 }
